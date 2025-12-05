@@ -1,0 +1,24 @@
+# Fortran build artifacts
+*.o
+*.obj
+*.mod
+*.MOD
+*.smod
+*.smod.d
+
+# Executables
+mass_inf
+a.out
+*.exe
+
+# Profiling/coverage
+*.gcda
+*.gcno
+*.gcov
+*.prof
+
+# Editor/OS cruft
+*~
+*.swp
+.DS_Store
+settings.json
