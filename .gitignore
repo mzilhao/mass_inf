@@ -6,6 +6,10 @@
 *.smod
 *.smod.d
 
+# Build directories
+bin/
+obj/
+
 # Executables
 mass_inf
 a.out
@@ -16,6 +20,10 @@ a.out
 *.gcno
 *.gcov
 *.prof
+
+# Test outputs (but not the benchmark)
+test/output.dat
+test/*.out
 
 # Editor/OS cruft
 *~
