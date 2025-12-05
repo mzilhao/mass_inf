@@ -2,7 +2,9 @@ FC = gfortran
 FCFLAGS_RELEASE = -O3 -march=native -fno-unsafe-math-optimizations
 FCFLAGS_DEBUG = -g -Wall -Wextra -Wno-unused-dummy-argument -fcheck=all \
                 -ffpe-trap=invalid,zero,overflow -Wno-maybe-uninitialized
-FCFLAGS = $(FCFLAGS_RELEASE)
+# Compiler flags to put .mod files in the object directory
+MODFLAGS_RELEASE = -J$(OBJDIR_RELEASE)
+MODFLAGS_DEBUG = -J$(OBJDIR_DEBUG)
 LDFLAGS =
 
 # List of executables to be built
@@ -45,11 +47,11 @@ $(BINDIR)/mass_inf-debug: $(OBJECTS_DEBUG)
 
 # Compile release objects
 $(OBJDIR_RELEASE)/%.o: $(SRCDIR)/%.f90
-	$(FC) $(FCFLAGS_RELEASE) -c -o $@ $<
+	$(FC) $(FCFLAGS_RELEASE) $(MODFLAGS_RELEASE) -c -o $@ $<
 
 # Compile debug objects
 $(OBJDIR_DEBUG)/%.o: $(SRCDIR)/%.f90
-	$(FC) $(FCFLAGS_DEBUG) -c -o $@ $<
+	$(FC) $(FCFLAGS_DEBUG) $(MODFLAGS_DEBUG) -c -o $@ $<
 
 # Module dependencies for release build
 $(OBJDIR_RELEASE)/evolve.o: $(OBJDIR_RELEASE)/functions.o
