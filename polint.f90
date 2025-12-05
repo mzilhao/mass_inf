@@ -49,7 +49,7 @@ function polint( x, xa, ya )
         den = ho - hp
         ! este erro so' acontecera' se os dois xa's forem identicos (dentro 
         ! da aproximacao numerica)
-        if( den == 0. ) then
+        if( abs(den) < 1.d-12 ) then
            write(*,*) "erro na rotina polint!"
            stop
         end if
