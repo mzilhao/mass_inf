@@ -21,9 +21,12 @@ a.out
 *.gcov
 *.prof
 
-# Test outputs (but not the benchmark)
-test/output.dat
+# Test outputs (temporary files, not reference data)
+test/output_data.dat
 test/*.out
+
+# Simulation output (regenerated each run)
+data.dat
 
 # Editor/OS cruft
 *~

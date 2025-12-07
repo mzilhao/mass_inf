@@ -69,9 +69,23 @@ clean:
 distclean: clean
 	rm -f test/*.out test/*.dat
 
-# Run unit tests with saved benchmark output
+# Run numerical regression tests (new proper testing framework)
 test: release
-	@echo "Running regression tests..."
+	@echo "Running numerical regression tests..."
+	@./test/run_tests.sh
+
+# Create/update reference data for regression tests
+test-save-reference: release
+	@echo "Saving current output as reference data..."
+	@mkdir -p test
+	@$(BINDIR)/mass_inf > /dev/null 2>&1
+	@cp data.dat test/reference_data.dat
+	@echo "✓ Reference data saved to test/reference_data.dat"
+	@echo "  This will be used for future regression testing."
+
+# Run old stdout-based benchmark tests (deprecated, kept for compatibility)
+test-benchmark: release
+	@echo "Running old benchmark tests (deprecated)..."
 	@mkdir -p test
 	@$(BINDIR)/mass_inf > test/output.dat 2>&1
 	@if [ -f test/benchmark.dat ]; then \
@@ -87,7 +101,7 @@ test: release
 		cp test/output.dat test/benchmark.dat; \
 	fi
 
-# Save current output as new benchmark
+# Save current stdout as benchmark (deprecated)
 benchmark: release
 	@echo "Creating benchmark from current run..."
 	@mkdir -p test
@@ -97,7 +111,13 @@ benchmark: release
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  make all          - Build release (optimized) version (default)"
+	@echo "  make all                  - Build release (optimized) version (default)"
+	@echo "  make release              - Build optimized version"
+	@echo "  make debug                - Build debug version with checks"
+	@echo "  make test                 - Run numerical regression tests"
+	@echo "  make test-save-reference  - Save current data.dat as reference"
+	@echo "  make clean                - Remove build artifacts"
+	@echo "  make distclean            - Remove all generated files"
 	@echo "  make release      - Explicitly build release version (bin/mass_inf)"
 	@echo "  make debug        - Build debug version with checks (bin/mass_inf-debug)"
 	@echo "  make test         - Run regression tests against benchmark"
