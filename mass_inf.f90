@@ -50,8 +50,8 @@ program mass_inflation
   double precision, allocatable                 :: u(:)
   double precision, allocatable, dimension(:,:) :: h_v0_new
 
-  double precision, allocatable, dimension(:) :: hp1, hp2, hp3, hp4, grad
-  double precision, allocatable, dimension(:) :: hp5, dhdup5, dhdvp5, dhduvp5
+  double precision, allocatable, dimension(:) :: h_S, h_E, h_W, h_N, grad
+  double precision, allocatable, dimension(:) :: h_P, dhdu_P, dhdv_P, dhduv_P
 
   double precision mass, Ricci
 
@@ -81,8 +81,8 @@ program mass_inflation
   allocate( plus(big_dim), minus(big_dim) )
   allocate( u(big_dim) )
   allocate( h_v0_new(neq, big_dim) )
-  allocate( hp1(neq), hp2(neq), hp3(neq), hp4(neq), grad(neq) )
-  allocate( hp5(neq), dhdup5(neq), dhdvp5(neq), dhduvp5(neq) )
+  allocate( h_S(neq), h_E(neq), h_W(neq), h_N(neq), grad(neq) )
+  allocate( h_P(neq), dhdu_P(neq), dhdv_P(neq), dhduv_P(neq) )
 
   u     = 0
   plus  = 0
@@ -100,10 +100,10 @@ program mass_inflation
   !
   ! do j = 1, Nu
   ! do j = 2, Nu
-  !    hp4(:) = h_v0(:,j)
+  !    h_N(:) = h_v0(:,j)
   !    tempu = abs(u(j) - u0) * resu
   !    if( tempu - int(tempu + Du*0.1) < 1.0d-6 )                                        &
-  !         call imprime(10, u(j), v0, hp4, (/ mass /) )
+  !         call imprime(10, u(j), v0, h_N, (/ mass /) )
   ! end do
 
   do i = 1, big_dim
@@ -118,11 +118,11 @@ program mass_inflation
   ! em cada passo assumimos que estamos no ponto (u,v).
   do i = 1, Nv - 1      ! 'i' faz-nos avancar de v para v + Dv.
 
-    ! comecamos por dar a hp4 o valor de h_u0, ie o valor de h em (u, v + Dv).
-    hp4(:) = h_u0(:,i+1)
+    ! comecamos por dar a h_N o valor de h_u0, ie o valor de h em (u, v + Dv).
+    h_N(:) = h_u0(:,i+1)
 
     ! para os 'novos' valores de h_v0
-    h_v0_new(:,1) = hp4(:)
+    h_v0_new(:,1) = h_N(:)
 
     ! reinicializamos a posicao em 'u' de cada vez que chegamos ao fim da grelha.
     upos = u0
@@ -130,14 +130,14 @@ program mass_inflation
     ! se quisermos imprimir os dados aqui, temos de corrigir a expressao para a massa...
     !
     ! jm1 = minus(j)
-    ! hp1(:) = h_v0(:,jm1)
-    ! hp2(:) = hp4(:)
-    ! hp3(:) = h_v0(:,j)
-    ! hp5    = 0.5*(hp2 + hp3)
-    ! dhdup5 = (hp3 - hp1 + hp4 - hp2)*0.5d0/Du
-    ! dhdvp5 = (hp2 - hp1 + hp4 - hp3)*0.5d0/Dv
-    ! mass = 0.5d0*hp5(1)**(D-3) * ( 1.d0 - lambda/3.d0 * hp5(1)*hp5(1)              &
-    !      + q2/((hp5(1)*hp5(1))**(D-3)) + 2.d0*dhdup5(1)*dhdvp5(1)/exp(2.0*hp5(3)) )
+    ! h_S(:) = h_v0(:,jm1)
+    ! h_E(:) = h_N(:)
+    ! h_W(:) = h_v0(:,j)
+    ! h_P    = 0.5*(h_E + h_W)
+    ! dhdu_P = (h_W - h_S + h_N - h_E)*0.5d0/Du
+    ! dhdv_P = (h_E - h_S + h_N - h_W)*0.5d0/Dv
+    ! mass = 0.5d0*h_P(1)**(D-3) * ( 1.d0 - lambda/3.d0 * h_P(1)*h_P(1)              &
+    !      + q2/((h_P(1)*h_P(1))**(D-3)) + 2.d0*dhdu_P(1)*dhdv_P(1)/exp(2.0*h_P(3)) )
 
     j = plus(1)
     v = v + Dv
@@ -145,7 +145,7 @@ program mass_inflation
     tempv = abs(v - v0) * resv
     if( tempv - int(tempv + Dv*0.1) < 1.0d-6 ) then
       write(10,'(a)') ''
-!     call imprime(10, u0, v, hp4, mass)          ! imprimimos os valores neste ponto
+!     call imprime(10, u0, v, h_N, mass)          ! imprimimos os valores neste ponto
     end if
 
     if( mod(i,100) == 0 .or. i == 1 )                                                &
@@ -155,17 +155,17 @@ program mass_inflation
     do while ( upos - uf < 0.d0 )
 
       jm1 = minus(j)
-      ! dizemos que hp1 tem o valor de h_v
-      hp1(:) = h_v0(:,jm1)  ! no ponto u, ie, o valor de h no ponto (u,v);
-      hp2(:) = hp4(:)       ! hp2 tem o valor que hp4 teve no passo
-      hp3(:) = h_v0(:,j)    ! anterior (ie, o valor de h no ponto (u, v + Dv) );
-      ! hp3 tem o valor de h no ponto (u + Du, v).
+      ! dizemos que h_S tem o valor de h_v
+      h_S(:) = h_v0(:,jm1)  ! no ponto u, ie, o valor de h no ponto (u,v);
+      h_E(:) = h_N(:)       ! h_E tem o valor que h_N teve no passo
+      h_W(:) = h_v0(:,j)    ! anterior (ie, o valor de h no ponto (u, v + Dv) );
+      ! h_W tem o valor de h no ponto (u + Du, v).
 
       if (AMR) then
 
       ! testamos a condicao desejada para decidir se diminuimos ou nao o
       ! passo de integracao.
-      grad = abs( (hp3 - hp1)/hp3 )
+      grad = abs( (h_W - h_S)/h_W )
 
         do while ( grad(1) > gradmax .and. j >= 4 )
            ! enquanto a condicao desejada nao for satisfeita, vamos
@@ -186,11 +186,11 @@ program mass_inflation
                  interp_y = (/ h_v0(k,1), h_v0(k,jm3), h_v0(k,jm2), h_v0(k,jm1),  &
                         h_v0(k,j) /)
               end if
-              hp3(k) = polint( (u(j) + u(jm1))*0.5d0 , interp_x, interp_y)
+              h_W(k) = polint( (u(j) + u(jm1))*0.5d0 , interp_x, interp_y)
            end do
 
         u(countlast)      = ( u(j) + u(jm1) )*0.5d0
-        h_v0(:,countlast) = hp3(:)
+        h_v0(:,countlast) = h_W(:)
 
         jm1               = minus(j)
         minus(countlast)  = jm1
@@ -201,34 +201,34 @@ program mass_inflation
         countlast         = countlast + 1
 
            ! Du = u(j) - u(minus(j))
-           ! call step(hp4,hp1,hp2,hp3,Du,Dv)
+           ! call step(h_N,h_S,h_E,h_W,Du,Dv)
 
-           grad = abs( (hp3 - hp1)/hp3 )
+           grad = abs( (h_W - h_S)/h_W )
         end do
       end if
 
       Du = u(j) - u(minus(j))              ! usando AMR, o passo de integracao
                                                             ! sera' variavel.
 
-      ! a rotina 'step' vai-nos entao devolver hp4, que e' o valor de h
+      ! a rotina 'step' vai-nos entao devolver h_N, que e' o valor de h
       ! no ponto (u + Du, v + Dv).
-      call step(hp4, hp1, hp2, hp3, Du, Dv, cfg, 4)
+      call step(h_N, h_S, h_E, h_W, Du, Dv, cfg, 4)
 
-      hp5    = 0.5*(hp2 + hp3)
-      dhdup5 = (hp3 - hp1 + hp4 - hp2)*0.5d0/Du
-      dhdvp5 = (hp2 - hp1 + hp4 - hp3)*0.5d0/Dv
+      h_P    = 0.5*(h_E + h_W)
+      dhdu_P = (h_W - h_S + h_N - h_E)*0.5d0/Du
+      dhdv_P = (h_E - h_S + h_N - h_W)*0.5d0/Dv
 
-      mass = 0.5d0*hp5(1)**(D-3) * ( 1.d0 - lambda/3.d0 * hp5(1)*hp5(1)              &
-            + q2/((hp5(1)*hp5(1))**(D-3)) + 2.d0*dhdup5(1)*dhdvp5(1)/exp(2.0*hp5(3)) )
+      mass = 0.5d0*h_P(1)**(D-3) * ( 1.d0 - lambda/3.d0 * h_P(1)*h_P(1)              &
+            + q2/((h_P(1)*h_P(1))**(D-3)) + 2.d0*dhdu_P(1)*dhdv_P(1)/exp(2.0*h_P(3)) )
 
-      call F(dhduvp5, hp5, dhdup5, dhdvp5, neq, cfg)
+      call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq, cfg)
 
-      Ricci = (D-3)*(D-2)/( hp5(1)*hp5(1) ) * (                                      &
-            1 + 2*exp(-2*hp5(3)) * dhdup5(1)*dhdvp5(1)                                &
+      Ricci = (D-3)*(D-2)/( h_P(1)*h_P(1) ) * (                                      &
+            1 + 2*exp(-2*h_P(3)) * dhdu_P(1)*dhdv_P(1)                                &
             )                                                                         &
-            + 4*exp(-2*hp5(3))*dhduvp5(3) + 4*(D-2)*dhduvp5(1)*exp(-2*hp5(3)) / hp5(1)
+            + 4*exp(-2*h_P(3))*dhduv_P(3) + 4*(D-2)*dhduv_P(1)*exp(-2*h_P(3)) / h_P(1)
 
-      h_v0_new(:,j) = hp4(:)
+      h_v0_new(:,j) = h_N(:)
       upos = upos + Du
 
       ! output
@@ -236,7 +236,7 @@ program mass_inflation
       tempu = abs(u(j) - u0) * resu
       if( abs(tempu - int(tempu + Du*0.5)) < 1.0d-7   .and.                          &
             abs(tempv - int(tempv + Dv*0.5)) < 1.0d-7 )                               &
-            call imprime(10, u(j), v, hp4, (/ mass, dhdvp5(1), Ricci /) )
+            call imprime(10, u(j), v, h_N, (/ mass, dhdv_P(1), Ricci /) )
 
       j = plus(j)
 
