@@ -1,46 +1,70 @@
-module functions
+module physics_config_mod
   implicit none
 
-  ! constantes globais
-  integer,          parameter :: NN     = 3                    ! numero equacoes
-  ! integer,          parameter :: D      = 5                    ! dimensao espaco-tempo
-  integer,          parameter :: D      = 4                    ! dimensao espaco-tempo
-  double precision, parameter :: lambda = 0.d0                 ! constante cosmologica
-  double precision, parameter :: q      = 0.95d0               ! carga electrica
-  double precision, parameter :: q2     = q*q
-  double precision, parameter :: qq2    = 0.5d0*q2*(D-3)*(D-2)
-  double precision, parameter :: qq     = sqrt(qq2)
-  double precision, parameter :: Pi     = 3.1415926535897932384626433d0
+  !> Physics configuration type - encapsulates all physics parameters
+  type :: physics_config
+    integer :: D = 4                            ! Spacetime dimension
+    integer :: neq = 3                          ! Number of equations
+    double precision :: lambda = 0.0d0          ! Cosmological constant
+    double precision :: q = 0.95d0              ! Electric charge
+    double precision :: q2, qq2, qq            ! Derived constants
+    double precision :: Pi = 3.1415926535897932384626433d0
+  end type physics_config
 
+end module physics_config_mod
+
+module functions
+  use physics_config_mod
+  implicit none
+
+  ! Legacy global state (to be refactored away)
   integer                        big_dim
-
-  ! variaveis globais
   double precision, allocatable, dimension(:,:) :: h_u0, h_v0
 
   !====================================================================================
 contains
-  ! h(1) -> r
-  ! h(2) -> phi
-  ! h(3) -> sigma
-  !
-  ! funcao que nos da' o lado direito da equacao que queremos resolver:
-  subroutine F( dhduv, h, dhdu, dhdv )
+
+  !> Initialize physics configuration with derived constants
+  subroutine init_physics_config(cfg)
+    type(physics_config), intent(inout) :: cfg
+    cfg%q2 = cfg%q * cfg%q
+    cfg%qq2 = 0.5d0 * cfg%q2 * (cfg%D - 3) * (cfg%D - 2)
+    cfg%qq = sqrt(cfg%qq2)
+  end subroutine init_physics_config
+
+  ! h(1) -> r,  h(2) -> phi,  h(3) -> sigma
+  !> Right-hand side of the PDE system
+  !! Signature: rhs(dhduv, h, dhdu, dhdv, neq, cfg)
+  subroutine F( dhduv, h, dhdu, dhdv, neq, cfg )
     implicit none
 
-    double precision, dimension(NN), intent(out) :: dhduv
-    double precision, dimension(NN), intent(in)  :: h, dhdu, dhdv
+    integer, intent(in) :: neq
+    double precision, dimension(neq), intent(out) :: dhduv
+    double precision, dimension(neq), intent(in)  :: h, dhdu, dhdv
+    type(physics_config), intent(in) :: cfg
 
-    dhduv(1) =  qq2/(D-2) *  exp(2 * h(3)) / ( h(1) ** (2*D - 5) )              &
-         + (D-1)/6.d0 * lambda * h(1) * exp(2 * h(3))                           &
-         - (D-3)/2.d0 * exp(2 * h(3)) / h(1)                                    &
+    ! Local copies for readability
+    integer :: D
+    double precision :: lambda, qq2
+
+    if (neq /= cfg%neq) error stop "F: neq mismatch with config"
+
+    ! Extract config values for cleaner code
+    D = cfg%D
+    lambda = cfg%lambda
+    qq2 = cfg%qq2
+
+    dhduv(1) =  qq2/(D-2) *  exp(2 * h(3)) / ( h(1) ** (2*D - 5) )   &
+         + (D-1)/6.d0 * lambda * h(1) * exp(2 * h(3))                &
+         - (D-3)/2.d0 * exp(2 * h(3)) / h(1)                         &
          - (D-3) * dhdu(1) * dhdv(1) / h(1)
 
     dhduv(2) = - (D-2)/(2.d0*h(1)) * ( dhdv(1) * dhdu(2) + dhdu(1) * dhdv(2) ) 
 
-    dhduv(3) = - dhdu(2) * dhdv(2)                                              &
-         - (3*D-8)/(2.d0*D-4) * qq2 * exp(2 * h(3)) / ( h(1) ** ( 2*(D - 2)) )  &
-         - (D-4)*(D-1) * lambda/12.d0 * exp(2 * h(3))                           &
-         + (D-3)*(D-2)/4.d0 * exp(2 * h(3)) / (h(1)*h(1))                       &
+    dhduv(3) = - dhdu(2) * dhdv(2)                                   &
+         - (3*D-8)/(2.d0*D-4) * qq2 * exp(2 * h(3)) / ( h(1) ** ( 2*(D - 2)) ) &
+         - (D-4)*(D-1) * lambda/12.d0 * exp(2 * h(3))                &
+         + (D-3)*(D-2)/4.d0 * exp(2 * h(3)) / (h(1)*h(1))            &
          + (D-3)*(D-2)/2.d0 * dhdu(1) * dhdv(1) / (h(1)*h(1)) 
 
   end subroutine F
@@ -48,7 +72,7 @@ contains
   !====================================================================================
   !
   subroutine init_cond( Du, Dv, u0, v0, m0, uf, vf, Nu, Nv, gradmax, gradmin, AMR, resu, &
-       resv, id )
+       resv, id, cfg )
 
     implicit none
 
@@ -56,6 +80,11 @@ contains
     integer,          intent(out) :: Nu, Nv, resu, resv
     logical,          intent(out) :: AMR
     integer,          intent(in)  :: id
+    type(physics_config), intent(in) :: cfg
+
+    ! Local copies for readability
+    integer :: D
+    double precision :: Pi, lambda, q2
 
     double precision :: r00, su0v0, ru0, v1
     double precision :: A, Delta
@@ -63,6 +92,12 @@ contains
 
     integer i
     double precision u, v
+
+    ! Extract config values for cleaner code
+    D = cfg%D
+    Pi = cfg%Pi
+    lambda = cfg%lambda
+    q2 = cfg%q2
 
     AMR = .true.
 
@@ -86,7 +121,7 @@ contains
     ! estimativa para o tamanho dos arrays
     big_dim = int( 2*(uf - u0)/gradmax )
 
-    allocate( h_u0(NN, big_dim), h_v0(NN, big_dim) )
+    allocate( h_u0(cfg%neq, big_dim), h_v0(cfg%neq, big_dim) )
     h_u0  = 0
     h_v0  = 0
 
@@ -118,7 +153,7 @@ contains
 
     write(id,'(a,i2)')    '# D         = ', D
     write(id,'(a,g10.4)') '# lambda    = ', lambda
-    write(id,'(a,g10.4)') '# q         = ', q
+    write(id,'(a,g10.4)') '# q         = ', sqrt(q2)
     write(id,'(a,g10.4)') '# A         = ', A
     write(id,'(a,g10.4)') '# sigma_0   = ', su0v0
     write(id,'(a,g10.4)') '# m0        = ', m0

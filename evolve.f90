@@ -1,53 +1,46 @@
-! PDE time stepper
-!
-! Solves: \partial_{uv} h_j(u,v) = F_j(h_k, \partial_u h_k, \partial_v h_k)
-!
-! Input:
-!   h_S, h_E, h_W : values at S=(u,v), E=(u,v+Dv), W=(u+Du,v)
-!   Du, Dv        : step sizes in u and v directions
-!   F             : RHS subroutine with signature F(dhduv, h, dhdu, dhdv)
-! Output:
-!   h_N           : solution at N=(u+Du, v+Dv)
-!
-subroutine evolve(h_N, h_S, h_E, h_W, Du, Dv)
-  use functions
+! Wrapper module to interface with pde_stepper
+
+module evolve_wrapper
+  use pde_stepper, only: evolve_pde => evolve
+  use physics_config_mod
   implicit none
+  private
+  public :: evolve, set_cfg
 
-  double precision, dimension(NN), intent(out) :: h_N
-  double precision, dimension(NN), intent(in)  :: h_S, h_E, h_W
-  double precision, intent(in)                 :: Du, Dv
+  ! Module-level config (set by main program before first evolve call)
+  type(physics_config) :: cfg_global
 
-  integer :: j
-  double precision, dimension(NN) :: h_P, dhdu_P, dhdv_P, dhduv_P, dhduv_P_new, h_N_old
+contains
 
-  ! First-order approximation for h_N, then compute derivatives at P = (u+Du/2, v+Dv/2)
-  h_N = h_W + h_E - h_S
-  h_P = 0.5d0*(h_S + h_N)
-  !h_P = 0.5*(h_E + h_W)
-  !h_P = 0.25*(h_S + h_N + h_E + h_W)
-  dhdu_P = (h_W - h_S + h_N - h_E)*0.5d0/Du
-  dhdv_P = (h_E - h_S + h_N - h_W)*0.5d0/Dv
+  !> Set physics config for subsequent evolve calls
+  subroutine set_cfg(cfg)
+    type(physics_config), intent(in) :: cfg
+    cfg_global = cfg
+  end subroutine set_cfg
 
-  ! Evaluate RHS at P
-  call F(dhduv_P, h_P, dhdu_P, dhdv_P)
+  !> Solve PDE step using the modular pde_stepper
+  subroutine evolve(h_N, h_S, h_E, h_W, Du, Dv, cfg, n_picard)
+    double precision, dimension(:), intent(out) :: h_N
+    double precision, dimension(:), intent(in)  :: h_S, h_E, h_W
+    double precision, intent(in)                :: Du, Dv
+    type(physics_config), intent(in)            :: cfg
+    integer, intent(in), optional               :: n_picard
 
-  ! Update h_N using RHS
-  h_N = h_W + h_E - h_S + dhduv_P*Du*Dv
+    call evolve_pde(h_N, h_S, h_E, h_W, Du, Dv, rhs_wrapper, cfg%neq, n_picard)
+  end subroutine evolve
 
-  ! Single Picard iteration for refinement (TODO: make this configurable)
-  do j = 1, 1
-    h_N_old = h_N
+  !> RHS wrapper that captures physics config
+  subroutine rhs_wrapper(dhduv, h, dhdu, dhdv, neq)
+    use functions, only: F
+    integer, intent(in) :: neq
+    double precision, dimension(neq), intent(out) :: dhduv
+    double precision, dimension(neq), intent(in)  :: h, dhdu, dhdv
 
-     !  h_P = 0.25*(h_S + h_N + h_E + h_W)
-    dhdu_P = (h_W - h_S + h_N - h_E)*0.5d0/Du
-    dhdv_P = (h_E - h_S + h_N - h_W)*0.5d0/Dv
+    ! Note: This accesses 'cfg_global' from the enclosing module scope
+    ! In a full refactoring, you'd pass cfg through the call stack
+    ! For now, we maintain a module-level cfg (set in main program)
+    call F(dhduv, h, dhdu, dhdv, neq, cfg_global)
+  end subroutine rhs_wrapper
 
-    ! Re-evaluate RHS at P
-    call F(dhduv_P_new, h_P, dhdu_P, dhdv_P)
+end module evolve_wrapper
 
-    ! Final update to h_N
-    h_N = h_W + h_E - h_S + Du*Dv*dhduv_P_new
-  end do
-
-
-end subroutine evolve

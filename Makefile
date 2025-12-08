@@ -54,11 +54,14 @@ $(OBJDIR_DEBUG)/%.o: $(SRCDIR)/%.f90
 	$(FC) $(FCFLAGS_DEBUG) $(MODFLAGS_DEBUG) -c -o $@ $<
 
 # Module dependencies for release build
-$(OBJDIR_RELEASE)/evolve.o: $(OBJDIR_RELEASE)/functions.o
+# functions.f90 contains physics_config_mod, must be built first
+$(OBJDIR_RELEASE)/pde_stepper.o: $(OBJDIR_RELEASE)/functions.o
+$(OBJDIR_RELEASE)/evolve.o: $(OBJDIR_RELEASE)/pde_stepper.o $(OBJDIR_RELEASE)/functions.o
 $(OBJDIR_RELEASE)/mass_inf.o: $(OBJDIR_RELEASE)/functions.o $(OBJDIR_RELEASE)/evolve.o
 
 # Module dependencies for debug build
-$(OBJDIR_DEBUG)/evolve.o: $(OBJDIR_DEBUG)/functions.o
+$(OBJDIR_DEBUG)/pde_stepper.o: $(OBJDIR_DEBUG)/functions.o
+$(OBJDIR_DEBUG)/evolve.o: $(OBJDIR_DEBUG)/pde_stepper.o $(OBJDIR_DEBUG)/functions.o
 $(OBJDIR_DEBUG)/mass_inf.o: $(OBJDIR_DEBUG)/functions.o $(OBJDIR_DEBUG)/evolve.o
 
 # Clean build artifacts (keep benchmark data)

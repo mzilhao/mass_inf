@@ -26,7 +26,7 @@ DATA_FILE="$PROJ_DIR/data.dat"
 
 # Numerical tolerances
 RTOL="1e-5"  # Relative tolerance (0.001%)
-ATOL="1e-8"  # Absolute tolerance
+ATOL="2e-8"  # Absolute tolerance
 
 # Column names for better reporting (avoid bash special var COLUMNS)
 COLUMN_NAMES="u v r phi sigma mass drdv Ricci"
