@@ -10,11 +10,6 @@
 bin/
 obj/
 
-# Executables
-mass_inf
-a.out
-*.exe
-
 # Profiling/coverage
 *.gcda
 *.gcno
