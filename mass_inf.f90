@@ -33,7 +33,7 @@ program mass_inflation
   use iface
   use physics_config_mod
   use functions
-  use evolve_wrapper, only: evolve, set_cfg
+  use evolve_wrapper, only: step, set_cfg
   implicit none
 
   ! Physics configuration
@@ -201,7 +201,7 @@ program mass_inflation
         countlast         = countlast + 1
 
            ! Du = u(j) - u(minus(j))
-           ! call evolve(hp4,hp1,hp2,hp3,Du,Dv)
+           ! call step(hp4,hp1,hp2,hp3,Du,Dv)
 
            grad = abs( (hp3 - hp1)/hp3 )
         end do
@@ -210,9 +210,9 @@ program mass_inflation
       Du = u(j) - u(minus(j))              ! usando AMR, o passo de integracao
                                                             ! sera' variavel.
 
-      ! a rotina 'evolve' vai-nos entao devolver hp4, que e' o valor de h
+      ! a rotina 'step' vai-nos entao devolver hp4, que e' o valor de h
       ! no ponto (u + Du, v + Dv).
-      call evolve(hp4, hp1, hp2, hp3, Du, Dv, cfg)
+      call step(hp4, hp1, hp2, hp3, Du, Dv, cfg)
 
       hp5    = 0.5*(hp2 + hp3)
       dhdup5 = (hp3 - hp1 + hp4 - hp2)*0.5d0/Du

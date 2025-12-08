@@ -1,11 +1,11 @@
 ! Wrapper module to interface with pde_stepper
 
 module evolve_wrapper
-  use pde_stepper, only: evolve_pde => evolve
+  use pde_stepper, only: pde_step
   use physics_config_mod
   implicit none
   private
-  public :: evolve, set_cfg
+  public :: step, set_cfg
 
   ! Module-level config (set by main program before first evolve call)
   type(physics_config) :: cfg_global
@@ -19,15 +19,15 @@ contains
   end subroutine set_cfg
 
   !> Solve PDE step using the modular pde_stepper
-  subroutine evolve(h_N, h_S, h_E, h_W, Du, Dv, cfg, n_picard)
+  subroutine step(h_N, h_S, h_E, h_W, Du, Dv, cfg, n_picard)
     double precision, dimension(:), intent(out) :: h_N
     double precision, dimension(:), intent(in)  :: h_S, h_E, h_W
     double precision, intent(in)                :: Du, Dv
     type(physics_config), intent(in)            :: cfg
     integer, intent(in), optional               :: n_picard
 
-    call evolve_pde(h_N, h_S, h_E, h_W, Du, Dv, rhs_wrapper, cfg%neq, n_picard)
-  end subroutine evolve
+    call pde_step(h_N, h_S, h_E, h_W, Du, Dv, rhs_wrapper, cfg%neq, n_picard)
+  end subroutine step
 
   !> RHS wrapper that captures physics config
   subroutine rhs_wrapper(dhduv, h, dhdu, dhdv, neq)

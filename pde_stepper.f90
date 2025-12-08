@@ -1,7 +1,7 @@
 module pde_stepper
   implicit none
   private
-  public :: evolve
+  public :: pde_step
 
   ! Abstract interface for RHS function
   ! Allows any subroutine with this signature to be passed
@@ -20,7 +20,6 @@ contains
   !! Solves: ∂_{uv} h_j(u,v) = F_j(h_k, ∂_u h_k, ∂_v h_k)
   !!
   !! Uses a predictor-corrector scheme with optional Picard iterations.
-  !! All dependencies are explicit (passed as arguments).
   !!
   !! @param[out] h_N         Solution at point (u+Du, v+Dv) [North]
   !! @param[in]  h_S         Values at point (u, v) [South]
@@ -31,7 +30,7 @@ contains
   !! @param[in]  rhs_func    Right-hand side F(dhduv, h, dhdu, dhdv, neq)
   !! @param[in]  neq         Number of equations (system size)
   !! @param[in]  n_picard    Number of Picard iterations for refinement (optional, default=1)
-  subroutine evolve(h_N, h_S, h_E, h_W, Du, Dv, rhs_func, neq, n_picard)
+  subroutine pde_step(h_N, h_S, h_E, h_W, Du, Dv, rhs_func, neq, n_picard)
     double precision, dimension(:), intent(out) :: h_N
     double precision, dimension(:), intent(in)  :: h_S, h_E, h_W
     double precision, intent(in)                :: Du, Dv
@@ -85,6 +84,6 @@ contains
       h_N = h_W + h_E - h_S + Du * Dv * dhduv_P_new
     end do picard_loop
 
-  end subroutine evolve
+  end subroutine pde_step
 
 end module pde_stepper
