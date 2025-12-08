@@ -11,17 +11,27 @@ module physics_config_mod
     double precision :: Pi = 3.1415926535897932384626433d0
   end type physics_config
 
+  !> Simulation configuration type - grid and integration parameters
+  type :: simulation_config
+    double precision :: u0, v0                  ! Integration domain start
+    double precision :: uf, vf                  ! Integration domain end
+    double precision :: Du, Dv                  ! Integration step sizes
+    double precision :: gradmax, gradmin        ! AMR gradient thresholds
+    logical :: AMR                              ! Adaptive mesh refinement enabled
+    integer :: resu, resv                       ! Output resolution
+    double precision :: m0                      ! Initial mass
+    integer :: Nu, Nv                           ! Grid points computed
+    integer :: big_dim                          ! Array allocation size
+  end type simulation_config
+
 end module physics_config_mod
 
 module functions
   use physics_config_mod
   implicit none
+  private
+  public :: F, init_physics_config, init_simulation_config, init_cond, print_simulation_header
 
-  ! Legacy global state (to be refactored away)
-  integer                        big_dim
-  double precision, allocatable, dimension(:,:) :: h_u0, h_v0
-
-  !====================================================================================
 contains
 
   !> Initialize physics configuration with derived constants
@@ -32,10 +42,61 @@ contains
     cfg%qq = sqrt(cfg%qq2)
   end subroutine init_physics_config
 
-  ! h(1) -> r,  h(2) -> phi,  h(3) -> sigma
+  !> Initialize simulation configuration with default values
+  subroutine init_simulation_config(sim_cfg, physics_cfg)
+    type(simulation_config), intent(out) :: sim_cfg
+    type(physics_config), intent(in) :: physics_cfg
+
+    ! Integration domain
+    sim_cfg%u0 = 0.0d0
+    sim_cfg%v0 = 5.0d0
+    sim_cfg%uf = 30.0d0
+    sim_cfg%vf = 15.0d0
+
+    ! Integration step sizes
+    sim_cfg%Du = 0.01d0
+    sim_cfg%Dv = 0.0005d0
+
+    ! AMR parameters
+    sim_cfg%AMR = .true.
+    sim_cfg%gradmax = 0.0001d0
+    sim_cfg%gradmin = 0.1d0  ! Currently unused
+
+    ! Output resolution
+    sim_cfg%resu = 20
+    sim_cfg%resv = 20
+
+    ! Initial conditions
+    sim_cfg%m0 = 1.0d0
+
+    ! Compute grid points
+    sim_cfg%Nu = int((sim_cfg%uf - sim_cfg%u0) / sim_cfg%Du + 1.001d0)
+    sim_cfg%Nv = int((sim_cfg%vf - sim_cfg%v0) / sim_cfg%Dv + 1.001d0)
+
+    ! Allocate array size
+    sim_cfg%big_dim = int(2.0d0 * (sim_cfg%uf - sim_cfg%u0) / sim_cfg%gradmax)
+  end subroutine init_simulation_config
+
+  !> Print simulation header to output file
+  subroutine print_simulation_header(id, physics_cfg, A)
+    integer, intent(in) :: id
+    type(physics_config), intent(in) :: physics_cfg
+    double precision, intent(in) :: A
+
+    write(id, '(a,i2)')    '# D         = ', physics_cfg%D
+    write(id, '(a,g10.4)') '# lambda    = ', physics_cfg%lambda
+    write(id, '(a,g10.4)') '# q         = ', sqrt(physics_cfg%q2)
+    write(id, '(a,g10.4)') '# A         = ', A
+    write(id, '(a,g10.4)') '# sigma_0   = ', -0.5d0 * log(2.0d0)
+    write(id, '(a,g10.4)') '# m0        = ', 1.0d0
+    write(id, '(a)') '#'
+  end subroutine print_simulation_header
+
+  !====================================================================================
   !> Right-hand side of the PDE system
-  !! Signature: rhs(dhduv, h, dhdu, dhdv, neq, cfg)
-  subroutine F( dhduv, h, dhdu, dhdv, neq, cfg )
+  !! Inputs: h (field values), dhdu, dhdv (derivatives)
+  !! Output: dhduv (mixed derivatives)
+  subroutine F(dhduv, h, dhdu, dhdv, neq, cfg)
     implicit none
 
     integer, intent(in) :: neq
@@ -54,183 +115,101 @@ contains
     lambda = cfg%lambda
     qq2 = cfg%qq2
 
-    dhduv(1) =  qq2/(D-2) *  exp(2 * h(3)) / ( h(1) ** (2*D - 5) )   &
-         + (D-1)/6.d0 * lambda * h(1) * exp(2 * h(3))                &
-         - (D-3)/2.d0 * exp(2 * h(3)) / h(1)                         &
+    ! h(1) = r, h(2) = phi, h(3) = sigma
+    dhduv(1) = qq2/(D-2) * exp(2*h(3)) / (h(1)**(2*D-5)) &
+         + (D-1)/6.0d0 * lambda * h(1) * exp(2*h(3)) &
+         - (D-3)/2.0d0 * exp(2*h(3)) / h(1) &
          - (D-3) * dhdu(1) * dhdv(1) / h(1)
 
-    dhduv(2) = - (D-2)/(2.d0*h(1)) * ( dhdv(1) * dhdu(2) + dhdu(1) * dhdv(2) ) 
+    dhduv(2) = -(D-2) / (2.0d0*h(1)) * (dhdv(1)*dhdu(2) + dhdu(1)*dhdv(2))
 
-    dhduv(3) = - dhdu(2) * dhdv(2)                                   &
-         - (3*D-8)/(2.d0*D-4) * qq2 * exp(2 * h(3)) / ( h(1) ** ( 2*(D - 2)) ) &
-         - (D-4)*(D-1) * lambda/12.d0 * exp(2 * h(3))                &
-         + (D-3)*(D-2)/4.d0 * exp(2 * h(3)) / (h(1)*h(1))            &
-         + (D-3)*(D-2)/2.d0 * dhdu(1) * dhdv(1) / (h(1)*h(1)) 
-
+    dhduv(3) = -dhdu(2) * dhdv(2) &
+         - (3*D-8) / (2.0d0*D-4) * qq2 * exp(2*h(3)) / (h(1)**(2*(D-2))) &
+         - (D-4)*(D-1) * lambda / 12.0d0 * exp(2*h(3)) &
+         + (D-3)*(D-2) / 4.0d0 * exp(2*h(3)) / (h(1)*h(1)) &
+         + (D-3)*(D-2) / 2.0d0 * dhdu(1) * dhdv(1) / (h(1)*h(1))
   end subroutine F
-  !
-  !====================================================================================
-  !
-  subroutine init_cond( Du, Dv, u0, v0, m0, uf, vf, Nu, Nv, gradmax, gradmin, AMR, resu, &
-       resv, id, cfg )
 
+  !====================================================================================
+  !> Initialize boundary conditions at u=u0 and v=v0
+  !! Returns: h_u0 (IC along u0), h_v0 (IC along v0)
+  subroutine init_cond(h_u0, h_v0, sim_cfg, physics_cfg)
     implicit none
 
-    double precision, intent(out) :: Du, Dv, u0, v0, uf, vf, gradmax, gradmin, m0
-    integer,          intent(out) :: Nu, Nv, resu, resv
-    logical,          intent(out) :: AMR
-    integer,          intent(in)  :: id
-    type(physics_config), intent(in) :: cfg
+    double precision, dimension(:,:), allocatable, intent(out) :: h_u0, h_v0
+    type(simulation_config), intent(inout) :: sim_cfg
+    type(physics_config), intent(in) :: physics_cfg
 
-    ! Local copies for readability
-    integer :: D
-    double precision :: Pi, lambda, q2
-
-    double precision :: r00, su0v0, ru0, v1
+    ! Local variables
+    integer :: i, D
+    double precision :: u, v, Pi, lambda, q2
+    double precision :: r00, sigma_0, m0, ru0, v1
     double precision :: A, Delta
-    logical          :: scalarfield
+    logical :: scalarfield
 
-    integer i
-    double precision u, v
+    ! Extract config values
+    D = physics_cfg%D
+    Pi = physics_cfg%Pi
+    lambda = physics_cfg%lambda
+    q2 = physics_cfg%q2
 
-    ! Extract config values for cleaner code
-    D = cfg%D
-    Pi = cfg%Pi
-    lambda = cfg%lambda
-    q2 = cfg%q2
+    ! Allocate boundary condition arrays
+    allocate(h_u0(physics_cfg%neq, sim_cfg%big_dim))
+    allocate(h_v0(physics_cfg%neq, sim_cfg%big_dim))
+    h_u0 = 0.0d0
+    h_v0 = 0.0d0
 
-    AMR = .true.
+    ! Initial condition parameters
+    r00 = sim_cfg%v0
+    sigma_0 = -0.5d0 * log(2.0d0)
+    m0 = sim_cfg%m0
+    ru0 = 0.25d0 * (2.0d0 / (r00**(D-3)) * (m0 - q2/(2.0d0*r00**(D-3))) &
+         - 1.0d0 + lambda * r00 * r00 / 3.0d0)
 
-    ! limites de integracao
-    u0 = 0.d0
-    v0 = 5.d0
-    ! uf = 21.d0
-    uf = 30.d0
-
-    ! vf = 20.d0
-    vf = 15.d0
-
-    resu  = 20                   ! resolucao que queremos em u ao imprimir os resultados
-    resv  = 20                   ! resolucao que queremos em v ao imprimir os resultados
-
-    gradmax = 0.0001d0           ! para controlo do AMR. maxima variacao
-                                 ! permitida nas variaveis
-
-    gradmin = 0.1d0              ! por enquanto nao estamos a usar esta variavel...
-  
-    ! estimativa para o tamanho dos arrays
-    big_dim = int( 2*(uf - u0)/gradmax )
-
-    allocate( h_u0(cfg%neq, big_dim), h_v0(cfg%neq, big_dim) )
-    h_u0  = 0
-    h_v0  = 0
-
-    !Du = (uf - u0)/(Nu - 1)
-    !Dv = (vf - v0)/(Nv - 1)
-
-    Du = 0.01d0
-    Dv = 0.0005d0
-
-    ! numero de pontos da grelha (inicialmente)
-    ! (o + 0.001 e' para garantir que nao se perde informacao na conversao para int...)
-    Nu = int( (uf - u0)/Du + 1 + 0.001 )          ! grelha em u
-    Nv = int( (vf - v0)/Dv + 1 + 0.001 )          ! grelha em v
-
-
-    ! condicoes iniciais
-    r00    = v0
-    su0v0  = - 0.5d0*log(2.d0)
-    m0     = 1.
-    ru0    = 0.25d0*(2.d0/( r00**(D-3) ) * ( m0 - q2/(2.d0* r00**(D-3)) )           & 
-         - 1.d0 + lambda * r00*r00/3.d0)
-
-    ! A      = 0.05d0
-    ! A      = 0.1d0
-    A      = 0.0d0
-    Delta  = 1.0d0
-
+    ! Perturbation parameters
+    A = 0.0d0
+    Delta = 1.0d0
     scalarfield = .true.
+    v1 = sim_cfg%v0 + Delta
 
-    write(id,'(a,i2)')    '# D         = ', D
-    write(id,'(a,g10.4)') '# lambda    = ', lambda
-    write(id,'(a,g10.4)') '# q         = ', sqrt(q2)
-    write(id,'(a,g10.4)') '# A         = ', A
-    write(id,'(a,g10.4)') '# sigma_0   = ', su0v0
-    write(id,'(a,g10.4)') '# m0        = ', m0
-    write(id,'(a)') '#'
+    ! Boundary conditions at u = u0
+    do i = 1, sim_cfg%Nv
+      v = sim_cfg%v0 + (i-1) * sim_cfg%Dv
+      h_u0(1, i) = v  ! r(u0,v)
 
-    v1 = v0 + Delta
-
-    ! em u = u0:
-    do i = 1, Nv
-       v = v0 + (i-1)*Dv
-       ! h_u0[v]:
-       h_u0(1,i) = v               ! r(u0,v)
-
-       if(scalarfield) then
-          if ( v <= v0 + Delta ) then
-
-             ! phi(u0,v):
-             h_u0(2,i) = A/(4*Pi) * ( 2*Pi*(v-v0)                           &
-                  - Delta*sin(2.d0*Pi*(v-v0)/Delta) )
-
-             ! sigma(u0,v):
-             ! h_u0[3][i] = su0v0 
-             !   + A*A / ( (D-2)*128.*Pi*Pi) * 
-             !   ( 15.*Delta*Delta + 24*Pi*Pi*v*v - 24.*Pi*Pi*v0*v0 
-             !     - 16.*Delta*Delta * cos(2.*Pi*(Delta + v - v0)/Delta) 
-             !     - Delta*Delta * cos(Pi*(-3.*Delta - 4.*v + 4.*v0)/Delta) 
-             !     - 32.*Delta*Pi*v * sin(2.*Pi*(Delta + v - v0)/Delta) 
-             !     + 4.*Delta*Pi*v * sin(Pi*(-3.*Delta - 4.*v + 4.*v0)/Delta)
-             !     ) ;
-       
-             ! pedro:
-             h_u0(3,i) = su0v0 +                                                  &
-                  2.0d0/(D-2.0) * A*A/(256*Pi*Pi) *                               &
-                  ( 15*v0*v0 - 24*Pi*Pi*v0*v0 - 30*v0*v1                          &
-                  + 15*v1*v1 + 24*Pi*Pi*v*v                                       &
-                  - 16*Delta*Delta*cos(2*Pi*(v0-v)/Delta)                         &
-                  + Delta*Delta*cos(4*Pi*(v0-v)/Delta)                            &
-                  - 32*Pi*v0*v*sin(2*Pi*(v0-v)/Delta)                             &
-                  + 32*Pi*v1*v*sin(2*Pi*(v0-v)/Delta)                             &
-                  + 4*Pi*v0*v*sin(4*Pi*(v0-v)/Delta)                              &
-                  - 4*Pi*v1*v*sin(4*Pi*(v0-v)/Delta)                              &
-                  )
-             
-          else 
-             ! phi(u0,v):
-             h_u0(2,i) = 0.5d0 *A * Delta 
-
-             ! sigma(u0,v):
-             ! h_u0(3,i) = su0v0 + 3./(16.*(D-2)) * A*A *(v*v - v0*v0)
-
-             ! pedro:
-             h_u0(3,i) = su0v0 + 2.0d0/(D-2.0d0) * 3*A*A*Delta*(v0+v1)/32.0d0
- 
-          end if
-          
-       else ! sem campo escalar
-          ! phi(u0,v):
-          h_u0(2,i) = 0.d0
-          ! sigma(u0,v):
-          h_u0(3,i) = su0v0
-          
-       end if
-  
+      if (scalarfield) then
+        if (v <= sim_cfg%v0 + Delta) then
+          ! Perturbation phase
+          h_u0(2, i) = A / (4*Pi) * (2*Pi*(v - sim_cfg%v0) - Delta * sin(2.0d0*Pi*(v - sim_cfg%v0)/Delta))
+          h_u0(3, i) = sigma_0 + 2.0d0/(D-2.0d0) * A*A/(256*Pi*Pi) &
+               * (15*sim_cfg%v0**2 - 24*Pi*Pi*sim_cfg%v0**2 - 30*sim_cfg%v0*v1 &
+               + 15*v1**2 + 24*Pi*Pi*v**2 &
+               - 16*Delta**2*cos(2*Pi*(sim_cfg%v0-v)/Delta) &
+               + Delta**2*cos(4*Pi*(sim_cfg%v0-v)/Delta) &
+               - 32*Pi*sim_cfg%v0*v*sin(2*Pi*(sim_cfg%v0-v)/Delta) &
+               + 32*Pi*v1*v*sin(2*Pi*(sim_cfg%v0-v)/Delta) &
+               + 4*Pi*sim_cfg%v0*v*sin(4*Pi*(sim_cfg%v0-v)/Delta) &
+               - 4*Pi*v1*v*sin(4*Pi*(sim_cfg%v0-v)/Delta))
+        else
+          ! No perturbation phase
+          h_u0(2, i) = 0.5d0 * A * Delta
+          h_u0(3, i) = sigma_0 + 2.0d0/(D-2.0d0) * 3*A*A*Delta*(sim_cfg%v0+v1)/32.0d0
+        end if
+      else
+        ! No scalar field
+        h_u0(2, i) = 0.0d0
+        h_u0(3, i) = sigma_0
+      end if
     end do
 
-    ! em v = v0:  
-    do i = 1, Nu
-       u = u0 + (i-1)*Du
-       ! h_v0[u]:
-       h_v0(1,i) = r00 + u * ru0    ! r(u,v0)
-       h_v0(2,i) = 0.d0             ! phi(u,v0)
-       h_v0(3,i) = su0v0            ! sigma(u,v0)
-       
+    ! Boundary conditions at v = v0
+    do i = 1, sim_cfg%Nu
+      u = sim_cfg%u0 + (i-1) * sim_cfg%Du
+      h_v0(1, i) = r00 + u * ru0  ! r(u,v0)
+      h_v0(2, i) = 0.0d0          ! phi(u,v0)
+      h_v0(3, i) = sigma_0        ! sigma(u,v0)
     end do
-
   end subroutine init_cond
-  !
-  !======================================================================================
-  !
+
+  !====================================================================================
 end module functions

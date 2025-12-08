@@ -36,15 +36,13 @@ program mass_inflation
   use evolve_wrapper, only: step, set_cfg
   implicit none
 
-  ! Physics configuration
+  ! Physics and simulation configuration
   type(physics_config) :: cfg
+  type(simulation_config) :: sim_cfg
   integer             :: neq, D
-  double precision    :: lambda, q2
+  double precision    :: lambda, q2, upos, v
 
-  ! definidos pelas condicoes iniciais
-  double precision :: Du, Dv, u0, v0, uf, vf, gradmax, gradmin, upos, v
-  logical          :: AMR
-  integer          :: Nu, Nv, resu, resv
+  double precision, allocatable, dimension(:,:) :: h_u0, h_v0
 
   integer,          allocatable, dimension(:)   :: plus, minus
   double precision, allocatable                 :: u(:)
@@ -62,25 +60,38 @@ program mass_inflation
   character(len=20), parameter :: filename = 'data.dat'
 
   double precision tempu, tempv
-  integer          i, j, k, jm1, jm2, jm3, jp1, countlast
+  double precision :: Du, Dv, u0, v0, uf, vf
+  integer          :: i, j, k, jm1, jm2, jm3, jp1, countlast
 
   ! Initialize physics configuration
+  ! Initialize configurations
   call init_physics_config(cfg)
+  call init_simulation_config(sim_cfg, cfg)
   neq     = cfg%neq
   D       = cfg%D
   lambda  = cfg%lambda
   q2      = cfg%q2
 
+  ! Create local aliases for readability
+  Du = sim_cfg%Du
+  Dv = sim_cfg%Dv
+  u0 = sim_cfg%u0
+  v0 = sim_cfg%v0
+  uf = sim_cfg%uf
+  vf = sim_cfg%vf
+
   ! Set global config for evolve_wrapper to use
   call set_cfg(cfg)
 
   open(unit=10, file=filename)
+  call print_simulation_header(10, cfg, 0.0d0)
 
-  call init_cond( Du, Dv, u0, v0, mass, uf, vf, Nu, Nv, gradmax, gradmin, AMR, resu, resv, 10, cfg)
+  ! Initialize boundary conditions (returns allocated h_u0, h_v0)
+  call init_cond(h_u0, h_v0, sim_cfg, cfg)
 
-  allocate( plus(big_dim), minus(big_dim) )
-  allocate( u(big_dim) )
-  allocate( h_v0_new(neq, big_dim) )
+  allocate( plus(sim_cfg%big_dim), minus(sim_cfg%big_dim) )
+  allocate( u(sim_cfg%big_dim) )
+  allocate( h_v0_new(neq, sim_cfg%big_dim) )
   allocate( h_S(neq), h_E(neq), h_W(neq), h_N(neq), grad(neq) )
   allocate( h_P(neq), dhdu_P(neq), dhdv_P(neq), dhduv_P(neq) )
 
@@ -88,9 +99,9 @@ program mass_inflation
   plus  = 0
   minus = 0
 
-  upos = u0
-  do i = 1, Nu
-    u(i) = u0 + (i-1)*Du
+  upos = sim_cfg%u0
+  do i = 1, sim_cfg%Nu
+    u(i) = sim_cfg%u0 + (i-1) * sim_cfg%Du
   end do
 
   ! write(10,'(a1,8a16)') '#', 'u','v','r','phi','sigma', 'mass', 'drdv', 'Ricci'
@@ -106,17 +117,17 @@ program mass_inflation
   !         call imprime(10, u(j), v0, h_N, (/ mass /) )
   ! end do
 
-  do i = 1, big_dim
+  do i = 1, sim_cfg%big_dim
     minus(i) = i-1
     plus(i)  = i+1
   end do
 
-  countlast = Nu + 1
-  v = v0
+  countlast = sim_cfg%Nu + 1
+  v = sim_cfg%v0
 
   ! inicio integracao. i sera' o passo em 'v', j o passo em 'u'.
   ! em cada passo assumimos que estamos no ponto (u,v).
-  do i = 1, Nv - 1      ! 'i' faz-nos avancar de v para v + Dv.
+  do i = 1, sim_cfg%Nv - 1      ! 'i' faz-nos avancar de v para v + Dv.
 
     ! comecamos por dar a h_N o valor de h_u0, ie o valor de h em (u, v + Dv).
     h_N(:) = h_u0(:,i+1)
@@ -142,8 +153,8 @@ program mass_inflation
     j = plus(1)
     v = v + Dv
 
-    tempv = abs(v - v0) * resv
-    if( tempv - int(tempv + Dv*0.1) < 1.0d-6 ) then
+    tempv = abs(v - v0) * sim_cfg%resv
+    if( tempv - int(tempv + Dv*0.1d0) < 1.0d-6 ) then
       write(10,'(a)') ''
 !     call imprime(10, u0, v, h_N, mass)          ! imprimimos os valores neste ponto
     end if
@@ -152,7 +163,7 @@ program mass_inflation
       write(*,'(a,g10.4,a,g10.4)') 'v = ', v, '|   ', vf
 
     ! 'j' vai-nos fazer avancar de u para u + Du.
-    do while ( upos - uf < 0.d0 )
+    do while ( upos - sim_cfg%uf < 0.d0 )
 
       jm1 = minus(j)
       ! dizemos que h_S tem o valor de h_v
@@ -161,13 +172,13 @@ program mass_inflation
       h_W(:) = h_v0(:,j)    ! anterior (ie, o valor de h no ponto (u, v + Dv) );
       ! h_W tem o valor de h no ponto (u + Du, v).
 
-      if (AMR) then
+      if (sim_cfg%AMR) then
 
       ! testamos a condicao desejada para decidir se diminuimos ou nao o
       ! passo de integracao.
       grad = abs( (h_W - h_S)/h_W )
 
-        do while ( grad(1) > gradmax .and. j >= 4 )
+        do while ( grad(1) > sim_cfg%gradmax .and. j >= 4 )
            ! enquanto a condicao desejada nao for satisfeita, vamos
            ! adicionando pontos adicionais 'a grelha.
 
@@ -207,19 +218,18 @@ program mass_inflation
         end do
       end if
 
-      Du = u(j) - u(minus(j))              ! usando AMR, o passo de integracao
-                                                            ! sera' variavel.
+      Du = u(j) - u(minus(j))     ! Update local Du (may have changed during AMR)
 
       ! a rotina 'step' vai-nos entao devolver h_N, que e' o valor de h
       ! no ponto (u + Du, v + Dv).
       call step(h_N, h_S, h_E, h_W, Du, Dv, cfg, 4)
 
-      h_P    = 0.5*(h_E + h_W)
+      h_P    = 0.5d0*(h_E + h_W)
       dhdu_P = (h_W - h_S + h_N - h_E)*0.5d0/Du
       dhdv_P = (h_E - h_S + h_N - h_W)*0.5d0/Dv
 
       mass = 0.5d0*h_P(1)**(D-3) * ( 1.d0 - lambda/3.d0 * h_P(1)*h_P(1)              &
-            + q2/((h_P(1)*h_P(1))**(D-3)) + 2.d0*dhdu_P(1)*dhdv_P(1)/exp(2.0*h_P(3)) )
+            + q2/((h_P(1)*h_P(1))**(D-3)) + 2.d0*dhdu_P(1)*dhdv_P(1)/exp(2.0d0*h_P(3)) )
 
       call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq, cfg)
 
@@ -232,10 +242,10 @@ program mass_inflation
       upos = upos + Du
 
       ! output
-      tempv = abs(v - v0) * resv
-      tempu = abs(u(j) - u0) * resu
-      if( abs(tempu - int(tempu + Du*0.5)) < 1.0d-7   .and.                          &
-            abs(tempv - int(tempv + Dv*0.5)) < 1.0d-7 )                               &
+      tempv = abs(v - v0) * sim_cfg%resv
+      tempu = abs(u(j) - u0) * sim_cfg%resu
+      if( abs(tempu - int(tempu + Du*0.5d0)) < 1.0d-7   .and.                          &
+            abs(tempv - int(tempv + Dv*0.5d0)) < 1.0d-7 )                             &
             call imprime(10, u(j), v, h_N, (/ mass, dhdv_P(1), Ricci /) )
 
       j = plus(j)
