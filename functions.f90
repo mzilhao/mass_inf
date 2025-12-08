@@ -11,26 +11,14 @@ module physics_config_mod
     double precision :: Pi = 3.1415926535897932384626433d0
   end type physics_config
 
-  !> Simulation configuration type - grid and integration parameters
-  type :: simulation_config
-    double precision :: u0, v0                  ! Integration domain start
-    double precision :: uf, vf                  ! Integration domain end
-    double precision :: Du, Dv                  ! Integration step sizes
-    double precision :: gradmax, gradmin        ! AMR gradient thresholds
-    logical :: AMR                              ! Adaptive mesh refinement enabled
-    integer :: resu, resv                       ! Output resolution
-    double precision :: m0                      ! Initial mass
-    integer :: Nu, Nv                           ! Grid points computed
-    integer :: big_dim                          ! Array allocation size
-  end type simulation_config
-
 end module physics_config_mod
 
 module functions
   use physics_config_mod
+  use simulation_config_mod
   implicit none
   private
-  public :: F, init_physics_config, init_simulation_config, init_cond, print_simulation_header
+  public :: F, init_physics_config, init_cond, print_simulation_header
 
 contains
 
@@ -41,41 +29,6 @@ contains
     cfg%qq2 = 0.5d0 * cfg%q2 * (cfg%D - 3) * (cfg%D - 2)
     cfg%qq = sqrt(cfg%qq2)
   end subroutine init_physics_config
-
-  !> Initialize simulation configuration with default values
-  subroutine init_simulation_config(sim_cfg, physics_cfg)
-    type(simulation_config), intent(out) :: sim_cfg
-    type(physics_config), intent(in) :: physics_cfg
-
-    ! Integration domain
-    sim_cfg%u0 = 0.0d0
-    sim_cfg%v0 = 5.0d0
-    sim_cfg%uf = 30.0d0
-    sim_cfg%vf = 15.0d0
-
-    ! Integration step sizes
-    sim_cfg%Du = 0.01d0
-    sim_cfg%Dv = 0.0005d0
-
-    ! AMR parameters
-    sim_cfg%AMR = .true.
-    sim_cfg%gradmax = 0.0001d0
-    sim_cfg%gradmin = 0.1d0  ! Currently unused
-
-    ! Output resolution
-    sim_cfg%resu = 20
-    sim_cfg%resv = 20
-
-    ! Initial conditions
-    sim_cfg%m0 = 1.0d0
-
-    ! Compute grid points
-    sim_cfg%Nu = int((sim_cfg%uf - sim_cfg%u0) / sim_cfg%Du + 1.001d0)
-    sim_cfg%Nv = int((sim_cfg%vf - sim_cfg%v0) / sim_cfg%Dv + 1.001d0)
-
-    ! Allocate array size
-    sim_cfg%big_dim = int(2.0d0 * (sim_cfg%uf - sim_cfg%u0) / sim_cfg%gradmax)
-  end subroutine init_simulation_config
 
   !> Print simulation header to output file
   subroutine print_simulation_header(id, physics_cfg, A)

@@ -32,6 +32,7 @@ end module iface
 program mass_inflation
   use iface
   use physics_config_mod
+  use simulation_config_mod
   use functions
   use evolve_wrapper, only: step, set_cfg
   implicit none
@@ -66,7 +67,7 @@ program mass_inflation
   ! Initialize physics configuration
   ! Initialize configurations
   call init_physics_config(cfg)
-  call init_simulation_config(sim_cfg, cfg)
+  call init_simulation_config(sim_cfg)
   neq     = cfg%neq
   D       = cfg%D
   lambda  = cfg%lambda
