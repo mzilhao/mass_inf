@@ -28,8 +28,8 @@ DATA_FILE="$PROJ_DIR/data.dat"
 RTOL="1e-5"  # Relative tolerance (0.001%)
 ATOL="1e-8"  # Absolute tolerance
 
-# Column names for better reporting
-COLUMNS="u v r phi sigma mass drdv Ricci"
+# Column names for better reporting (avoid bash special var COLUMNS)
+COLUMN_NAMES="u v r phi sigma mass drdv Ricci"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -98,7 +98,7 @@ echo
 if python3 "$TEST_DIR/compare_numerical.py" \
     "$REFERENCE_FILE" "$OUTPUT_FILE" \
     --rtol "$RTOL" --atol "$ATOL" \
-    --columns $COLUMNS; then
+    --columns $COLUMN_NAMES; then
     
     echo
     echo -e "${GREEN}=========================================="
