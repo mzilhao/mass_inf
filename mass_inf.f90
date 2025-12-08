@@ -212,7 +212,7 @@ program mass_inflation
 
       ! a rotina 'step' vai-nos entao devolver hp4, que e' o valor de h
       ! no ponto (u + Du, v + Dv).
-      call step(hp4, hp1, hp2, hp3, Du, Dv, cfg)
+      call step(hp4, hp1, hp2, hp3, Du, Dv, cfg, 4)
 
       hp5    = 0.5*(hp2 + hp3)
       dhdup5 = (hp3 - hp1 + hp4 - hp2)*0.5d0/Du
