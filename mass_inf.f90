@@ -1,3 +1,27 @@
+module amr_helpers
+  implicit none
+  private
+  public :: relative_gradient
+
+contains
+
+  !> Compute relative gradient between two values
+  !! Used for AMR criterion based on the variation of the r variable.
+  !!
+  !! @param[in] val1
+  !! @param[in] val2
+  !! @return Relative gradient measure
+  pure function relative_gradient(val1, val2) result(grad)
+    double precision, intent(in) :: val1, val2
+    double precision :: grad
+    double precision, parameter :: EPSILON_GUARD = 1.0d-16
+
+    ! The factor of 2 normalizes the gradient relative to the average value.
+    grad = 2.0d0 * abs((val1 - val2) / (val1 + val2 + EPSILON_GUARD))
+  end function relative_gradient
+
+end module amr_helpers
+
 program mass_inflation
   use physics_config_mod
   use simulation_config_mod
@@ -5,6 +29,7 @@ program mass_inflation
   use evolve_wrapper, only: step, set_cfg
   use polint_mod
   use imprime_mod
+  use amr_helpers
   implicit none
 
   ! Physics and simulation configuration
@@ -124,7 +149,7 @@ program mass_inflation
       ! we add a new point halfway between them by interpolating all
       ! field values using polynomial interpolation.
       if (sim_cfg%AMR) then
-        grad_r = 2.0d0*abs((h_W(1) - h_S(1))/(h_W(1) + h_S(1) + 1.0d-16))
+        grad_r = relative_gradient(h_W(1), h_S(1))
 
         ! We keep adding points in u until the gradient in r is small enough
         do while (grad_r > sim_cfg%gradmax .and. j >= 4)
@@ -156,7 +181,7 @@ program mass_inflation
           j               = next_idx
           next_idx        = next_idx + 1
 
-          grad_r = 2.0d0*abs((h_W(1) - h_S(1))/(h_W(1) + h_S(1) + 1.0d-16))
+          grad_r = relative_gradient(h_W(1), h_S(1))
         end do
       end if
 
