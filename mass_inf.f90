@@ -1,32 +1,12 @@
-! necessario esta interface pois a rotina 'imprime' e a funcao 'polint' aceitam
-! arrays com dimensao assumida
-module iface
-  interface imprime
-    subroutine imprime(id, u, v, h1, h2)
-      implicit none
-      integer, intent(in) :: id
-      double precision, intent(in) :: u, v
-      double precision, dimension(:), intent(in) :: h1, h2
-    end subroutine imprime
-  end interface
-  interface polint
-    function polint(x, xa, ya)
-      implicit none
-      double precision :: polint
-      double precision, dimension(:), intent(in) :: xa, ya
-      double precision, intent(in) :: x
-    end function polint
-  end interface
-end module iface
-
 !=======================================================================================
 
 program mass_inflation
-  use iface
   use physics_config_mod
   use simulation_config_mod
   use functions
   use evolve_wrapper, only: step, set_cfg
+  use polint_mod
+  use imprime_mod
   implicit none
 
   ! Physics and simulation configuration
@@ -210,16 +190,3 @@ program mass_inflation
   deallocate(h_u0, h_v0, u, minus, plus, h_v0_new)
 
 end program mass_inflation
-
-!=======================================================================================
-
-subroutine imprime(id, u, v, h1, h2)
-  implicit none
-
-  integer, intent(in) :: id
-  double precision, intent(in) :: u, v
-  double precision, dimension(:), intent(in) :: h1, h2
-
-  write(id,*) (/ u, v, h1, h2 /)
-
-end subroutine imprime

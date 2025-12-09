@@ -1,15 +1,21 @@
-
 ! Polynomial interpolation routine
 ! Copied from Numerical Recipes in C++, 2nd edition.
 ! Performs Lagrange polynomial interpolation/extrapolation.
-!
-! Input:
-!   xa, ya : known data points (arrays of size N)
-!   x      : point to interpolate at
-! Output:
-!   polint : interpolated value at x
 
-function polint(x, xa, ya)
+module polint_mod
+  implicit none
+  private
+  public :: polint
+
+contains
+
+  !> Lagrange polynomial interpolation/extrapolation
+  !! Input:
+  !!   xa, ya : known data points (arrays of size N)
+  !!   x      : point to interpolate at
+  !! Output:
+  !!   polint : interpolated value at x
+  function polint(x, xa, ya)
   implicit none
 
   double precision :: polint
@@ -71,3 +77,5 @@ function polint(x, xa, ya)
   deallocate(C, D)
 
 end function polint
+
+end module polint_mod
