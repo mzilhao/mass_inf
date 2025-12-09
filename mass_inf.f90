@@ -1,5 +1,3 @@
-!=======================================================================================
-
 program mass_inflation
   use physics_config_mod
   use simulation_config_mod
@@ -13,13 +11,13 @@ program mass_inflation
   type(physics_config)    :: cfg
   type(simulation_config) :: sim_cfg
   integer                 :: neq
-  double precision        :: upos, v
+  double precision        :: upos, v, grad_r
 
   double precision, allocatable, dimension(:,:) :: h_u0, h_v0
   integer,          allocatable, dimension(:)   :: plus, minus
   double precision, allocatable                 :: u(:)
   double precision, allocatable, dimension(:,:) :: h_v0_new
-  double precision, allocatable, dimension(:)   :: h_S, h_E, h_W, h_N, grad
+  double precision, allocatable, dimension(:)   :: h_S, h_E, h_W, h_N
   double precision, allocatable, dimension(:)   :: h_P, dhdu_P, dhdv_P, dhduv_P
 
   double precision :: mass, drdv, ricci
@@ -54,7 +52,7 @@ program mass_inflation
   allocate(plus(sim_cfg%Nu_max), minus(sim_cfg%Nu_max))
   allocate(u(sim_cfg%Nu_max))
   allocate(h_v0_new(neq, sim_cfg%Nu_max))
-  allocate(h_S(neq), h_E(neq), h_W(neq), h_N(neq), grad(neq))
+  allocate(h_S(neq), h_E(neq), h_W(neq), h_N(neq))
   allocate(h_P(neq), dhdu_P(neq), dhdv_P(neq), dhduv_P(neq))
 
   u = 0
@@ -113,12 +111,12 @@ program mass_inflation
       h_W(:) = h_v0(:, j)    ! h(u + du, v)
 
       if (sim_cfg%AMR) then
-        grad = abs((h_W - h_S)/h_W)
+        grad_r = abs((h_W(1) - h_S(1))/(h_W(1) + h_S(1) + 1.0d-16))
 
         ! testamos a condicao desejada para decidir se diminuimos ou nao o
         ! passo de integracao. enquanto a condicao desejada nao for satisfeita, vamos
         ! adicionando pontos adicionais 'a grelha.
-        do while (grad(1) > sim_cfg%gradmax .and. j >= 4)
+        do while (grad_r > sim_cfg%gradmax .and. j >= 4)
           jm1 = minus(j)
           jm2 = minus(jm1)
           jm3 = minus(jm2)
@@ -148,7 +146,7 @@ program mass_inflation
           j                = countlast
           countlast        = countlast + 1
 
-          grad = abs((h_W - h_S)/h_W)
+          grad_r = abs((h_W(1) - h_S(1))/(h_W(1) + h_S(1) + 1.0d-16))
         end do
       end if
 
