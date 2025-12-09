@@ -134,7 +134,7 @@ contains
     q2 = physics_cfg%q2
 
     ! Allocate boundary condition arrays
-    allocate(h_u0(physics_cfg%neq, sim_cfg%Nu_max))
+    allocate(h_u0(physics_cfg%neq, sim_cfg%Nv))
     allocate(h_v0(physics_cfg%neq, sim_cfg%Nu_max))
     h_u0 = 0.0d0
     h_v0 = 0.0d0
