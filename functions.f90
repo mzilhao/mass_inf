@@ -19,6 +19,7 @@ module functions
   implicit none
   private
   public :: F, init_physics_config, init_cond, print_simulation_header
+  public :: compute_diagnostics
 
 contains
 
@@ -29,6 +30,32 @@ contains
     cfg%qq2 = 0.5d0 * cfg%q2 * (cfg%D - 3) * (cfg%D - 2)
     cfg%qq = sqrt(cfg%qq2)
   end subroutine init_physics_config
+
+  !> Compute model-dependent diagnostics (mass, drdv, Ricci)
+  subroutine compute_diagnostics(h, dhdu, dhdv, dhduv, cfg, mass, drdv, ricci)
+    implicit none
+    double precision, dimension(:), intent(in)  :: h, dhdu, dhdv, dhduv
+    type(physics_config), intent(in)            :: cfg
+    double precision,           intent(out)     :: mass, drdv, ricci
+
+    integer :: D
+    double precision :: lambda, q2
+
+    D = cfg%D
+    lambda = cfg%lambda
+    q2 = cfg%q2
+
+    drdv = dhdv(1)
+
+    mass = 0.5d0 * h(1)**(D-3) * ( 1.d0 - lambda/3.d0 * h(1)*h(1)           &
+          + q2 / ( (h(1)*h(1))**(D-3) )                                     &
+          + 2.d0 * dhdu(1) * dhdv(1) / exp(2.d0 * h(3)) )
+
+    ricci = (D-3)*(D-2)/( h(1)*h(1) ) * (                                   &
+          1 + 2*exp(-2*h(3)) * dhdu(1)*dhdv(1)                             &
+          )                                                                &
+          + 4*exp(-2*h(3))*dhduv(3) + 4*(D-2)*dhduv(1)*exp(-2*h(3)) / h(1)
+  end subroutine compute_diagnostics
 
   !> Print simulation header to output file
   subroutine print_simulation_header(id, physics_cfg, A)

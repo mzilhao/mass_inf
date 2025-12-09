@@ -38,40 +38,29 @@ program mass_inflation
   implicit none
 
   ! Physics and simulation configuration
-  type(physics_config) :: cfg
+  type(physics_config)    :: cfg
   type(simulation_config) :: sim_cfg
-  integer             :: neq, D
-  double precision    :: lambda, q2, upos, v
+  integer                 :: neq
+  double precision        :: upos, v
 
   double precision, allocatable, dimension(:,:) :: h_u0, h_v0
-
   integer,          allocatable, dimension(:)   :: plus, minus
   double precision, allocatable                 :: u(:)
   double precision, allocatable, dimension(:,:) :: h_v0_new
+  double precision, allocatable, dimension(:)   :: h_S, h_E, h_W, h_N, grad
+  double precision, allocatable, dimension(:)   :: h_P, dhdu_P, dhdv_P, dhduv_P
 
-  double precision, allocatable, dimension(:) :: h_S, h_E, h_W, h_N, grad
-  double precision, allocatable, dimension(:) :: h_P, dhdu_P, dhdv_P, dhduv_P
-
-  double precision mass, Ricci
-
-  ! para fazer a interpolacao (ordem 5, neste caso)
+  double precision :: mass, drdv, ricci
+  double precision :: Du, Dv, u0, v0, uf, vf
+  double precision :: tempu, tempv
   double precision, dimension(5) :: interp_x, interp_y
 
-  ! ficheiro para imprimir os valores
+  integer :: i, j, k, jm1, jm2, jm3, jp1, countlast
   character(len=20), parameter :: filename = 'data.dat'
 
-  double precision tempu, tempv
-  double precision :: Du, Dv, u0, v0, uf, vf
-  integer          :: i, j, k, jm1, jm2, jm3, jp1, countlast
-
-  ! Initialize physics configuration
-  ! Initialize configurations
   call init_physics_config(cfg)
   call init_simulation_config(sim_cfg)
-  neq     = cfg%neq
-  D       = cfg%D
-  lambda  = cfg%lambda
-  q2      = cfg%q2
+  neq = cfg%neq
 
   ! Create local aliases for readability
   Du = sim_cfg%Du
@@ -105,7 +94,6 @@ program mass_inflation
     u(i) = sim_cfg%u0 + (i-1) * sim_cfg%Du
   end do
 
-  ! write(10,'(a1,8a16)') '#', 'u','v','r','phi','sigma', 'mass', 'drdv', 'Ricci'
   write(10,'(a)') '# | u | v | r | phi | sigma | mass | drdv | Ricci'
   ! ! vamos imprimir as condicoes iniciais
   ! para escrever isto aqui temos de meter tb uma maneira de sacar o drdv e o Ricci inicialmente...
@@ -229,15 +217,8 @@ program mass_inflation
       dhdu_P = (h_W - h_S + h_N - h_E)*0.5d0/Du
       dhdv_P = (h_E - h_S + h_N - h_W)*0.5d0/Dv
 
-      mass = 0.5d0*h_P(1)**(D-3) * ( 1.d0 - lambda/3.d0 * h_P(1)*h_P(1)              &
-            + q2/((h_P(1)*h_P(1))**(D-3)) + 2.d0*dhdu_P(1)*dhdv_P(1)/exp(2.0d0*h_P(3)) )
-
       call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq, cfg)
-
-      Ricci = (D-3)*(D-2)/( h_P(1)*h_P(1) ) * (                                      &
-            1 + 2*exp(-2*h_P(3)) * dhdu_P(1)*dhdv_P(1)                                &
-            )                                                                         &
-            + 4*exp(-2*h_P(3))*dhduv_P(3) + 4*(D-2)*dhduv_P(1)*exp(-2*h_P(3)) / h_P(1)
+      call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
 
       h_v0_new(:,j) = h_N(:)
       upos = upos + Du
@@ -245,9 +226,10 @@ program mass_inflation
       ! output
       tempv = abs(v - v0) * sim_cfg%resv
       tempu = abs(u(j) - u0) * sim_cfg%resu
-      if( abs(tempu - int(tempu + Du*0.5d0)) < 1.0d-7   .and.                          &
-            abs(tempv - int(tempv + Dv*0.5d0)) < 1.0d-7 )                             &
-            call imprime(10, u(j), v, h_N, (/ mass, dhdv_P(1), Ricci /) )
+      if( abs(tempu - int(tempu + Du*0.5d0)) < 1.0d-7 .and.                          &
+          abs(tempv - int(tempv + Dv*0.5d0)) < 1.0d-7 ) then
+        call imprime(10, u(j), v, h_N, (/ mass, drdv, ricci /))
+      end if
 
       j = plus(j)
 
