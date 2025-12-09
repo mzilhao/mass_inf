@@ -191,10 +191,10 @@ program mass_inflation
 
     end do ! do while in the u direction
 
-    ! finalmente podemos escrever h_v1 em h_v0 (e' ineficiente copiar o array todo)
-    do k = 1, next_idx + 1
-      h_v0(k, :) = h_v1(k, :)
-    end do
+    ! Copy active grid points from h_v1 back to h_v0 for the next v-step.
+    ! Only copy rows 1 to next_idx (active points after AMR refinement) to avoid
+    ! unnecessary copying of unused array memory.
+    h_v0(1:next_idx, :) = h_v1(1:next_idx, :)
 
   end do
 
