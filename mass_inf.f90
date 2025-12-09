@@ -124,8 +124,7 @@ program mass_inflation
       ! we add a new point halfway between them by interpolating all
       ! field values using polynomial interpolation.
       if (sim_cfg%AMR) then
-        ! FIXME: multiplica por 2.
-        grad_r = abs((h_W(1) - h_S(1))/(h_W(1) + h_S(1) + 1.0d-16))
+        grad_r = 2.0d0*abs((h_W(1) - h_S(1))/(h_W(1) + h_S(1) + 1.0d-16))
 
         ! We keep adding points in u until the gradient in r is small enough
         do while (grad_r > sim_cfg%gradmax .and. j >= 4)
@@ -157,8 +156,7 @@ program mass_inflation
           j               = next_idx
           next_idx        = next_idx + 1
 
-          ! FIXME: see above
-          grad_r = abs((h_W(1) - h_S(1))/(h_W(1) + h_S(1) + 1.0d-16))
+          grad_r = 2.0d0*abs((h_W(1) - h_S(1))/(h_W(1) + h_S(1) + 1.0d-16))
         end do
       end if
 
@@ -170,8 +168,8 @@ program mass_inflation
       h_v1(j, :) = h_N(:)
       upos = upos + du
 
-      ! FIXME.
-      h_P    = 0.5d0*(h_E + h_W)
+      ! FIXME. diagnostics and output
+      h_P = 0.25d0 * (h_N + h_S + h_E - h_W)
       dhdu_P = (h_W - h_S + h_N - h_E)*0.5d0 / du
       dhdv_P = (h_E - h_S + h_N - h_W)*0.5d0 / dv
 
