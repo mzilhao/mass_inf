@@ -56,7 +56,7 @@ program mass_inflation
 
   allocate(plus(Nu_max), minus(Nu_max))
   allocate(u(Nu_max))
-  allocate(h_v0_new(neq, Nu_max))
+  allocate(h_v0_new(Nu_max, neq))
   allocate(h_S(neq), h_E(neq), h_W(neq), h_N(neq))
   allocate(h_P(neq), dhdu_P(neq), dhdv_P(neq), dhduv_P(neq))
 
@@ -85,10 +85,10 @@ program mass_inflation
   do i = 1, Nv - 1
 
     ! h_N <- h(u, v + dv)
-    h_N(:) = h_u0(:, i + 1)
+    h_N(:) = h_u0(i + 1, :)
 
     ! preparar novos valores de h_v0
-    h_v0_new(:, 1) = h_N(:)
+    h_v0_new(1, :) = h_N(:)
 
     ! reinicializar posicao em u de cada vez que chegamos ao fim da grelha.
     upos = u0
@@ -112,9 +112,9 @@ program mass_inflation
       ! dizemos que h_S tem o valor de h_v no ponto u, ie, o valor de h no ponto (u,v);
       ! h_E tem o valor que h_N teve no passo anterior (ie, o valor de h no ponto (u, v + dv) );
       ! h_W tem o valor de h no ponto (u + du, v).
-      h_S(:) = h_v0(:, jm1)  ! h(u, v)
+      h_S(:) = h_v0(jm1, :)  ! h(u, v)
       h_E(:) = h_N(:)        ! h(u, v + dv)
-      h_W(:) = h_v0(:, j)    ! h(u + du, v)
+      h_W(:) = h_v0(j, :)    ! h(u + du, v)
 
       if (sim_cfg%AMR) then
         grad_r = abs((h_W(1) - h_S(1))/(h_W(1) + h_S(1) + 1.0d-16))
@@ -131,18 +131,18 @@ program mass_inflation
           do k = 1, neq
             if (u(jp1) < uf) then
               interp_x = (/ u(1), u(jm2), u(jm1), u(j), u(jp1) /)
-              interp_y = (/ h_v0(k,1), h_v0(k,jm2), h_v0(k,jm1), h_v0(k,j), &
-                            h_v0(k,jp1) /)
+              interp_y = (/ h_v0(1,k), h_v0(jm2,k), h_v0(jm1,k), h_v0(j,k), &
+                            h_v0(jp1,k) /)
             else
               interp_x = (/ u(1), u(jm3), u(jm2), u(jm1), u(j) /)
-              interp_y = (/ h_v0(k,1), h_v0(k,jm3), h_v0(k,jm2), h_v0(k,jm1), &
-                            h_v0(k,j) /)
+              interp_y = (/ h_v0(1,k), h_v0(jm3,k), h_v0(jm2,k), h_v0(jm1,k), &
+                            h_v0(j,k) /)
             end if
             h_W(k) = polint((u(j) + u(jm1))*0.5d0, interp_x, interp_y)
           end do
 
           u(countlast)       = (u(j) + u(jm1))*0.5d0
-          h_v0(:, countlast) = h_W(:)
+          h_v0(countlast, :) = h_W(:)
 
           jm1              = minus(j)
           minus(countlast) = jm1
@@ -168,7 +168,7 @@ program mass_inflation
       call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq, cfg)
       call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
 
-      h_v0_new(:, j) = h_N(:)
+      h_v0_new(j, :) = h_N(:)
       upos = upos + du
 
       tempv = abs(v - v0) * sim_cfg%resv
@@ -184,7 +184,7 @@ program mass_inflation
 
     ! finalmente podemos escrever h_v0_new em h_v0 (e' ineficiente copiar o array todo)
     do k = 1, countlast + 1
-      h_v0(:, k) = h_v0_new(:, k)
+      h_v0(k, :) = h_v0_new(k, :)
     end do
 
   end do

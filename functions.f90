@@ -134,8 +134,8 @@ contains
     q2 = physics_cfg%q2
 
     ! Allocate boundary condition arrays
-    allocate(h_u0(physics_cfg%neq, sim_cfg%Nv))
-    allocate(h_v0(physics_cfg%neq, sim_cfg%Nu_max))
+    allocate(h_u0(sim_cfg%Nv, physics_cfg%neq))
+    allocate(h_v0(sim_cfg%Nu_max, physics_cfg%neq))
     h_u0 = 0.0d0
     h_v0 = 0.0d0
 
@@ -155,13 +155,13 @@ contains
     ! Boundary conditions at u = u0
     do i = 1, sim_cfg%Nv
       v = sim_cfg%v0 + (i-1) * sim_cfg%dv
-      h_u0(1, i) = v  ! r(u0,v)
+      h_u0(i, 1) = v  ! r(u0,v)
 
       if (scalarfield) then
         if (v <= sim_cfg%v0 + Delta) then
           ! Perturbation phase
-          h_u0(2, i) = A / (4*Pi) * (2*Pi*(v - sim_cfg%v0) - Delta * sin(2.0d0*Pi*(v - sim_cfg%v0)/Delta))
-          h_u0(3, i) = sigma_0 + 2.0d0/(D-2.0d0) * A*A/(256*Pi*Pi) &
+          h_u0(i, 2) = A / (4*Pi) * (2*Pi*(v - sim_cfg%v0) - Delta * sin(2.0d0*Pi*(v - sim_cfg%v0)/Delta))
+          h_u0(i, 3) = sigma_0 + 2.0d0/(D-2.0d0) * A*A/(256*Pi*Pi) &
                * (15*sim_cfg%v0**2 - 24*Pi*Pi*sim_cfg%v0**2 - 30*sim_cfg%v0*v1 &
                + 15*v1**2 + 24*Pi*Pi*v**2 &
                - 16*Delta**2*cos(2*Pi*(sim_cfg%v0-v)/Delta) &
@@ -172,22 +172,22 @@ contains
                - 4*Pi*v1*v*sin(4*Pi*(sim_cfg%v0-v)/Delta))
         else
           ! No perturbation phase
-          h_u0(2, i) = 0.5d0 * A * Delta
-          h_u0(3, i) = sigma_0 + 2.0d0/(D-2.0d0) * 3*A*A*Delta*(sim_cfg%v0+v1)/32.0d0
+          h_u0(i, 2) = 0.5d0 * A * Delta
+          h_u0(i, 3) = sigma_0 + 2.0d0/(D-2.0d0) * 3*A*A*Delta*(sim_cfg%v0+v1)/32.0d0
         end if
       else
         ! No scalar field
-        h_u0(2, i) = 0.0d0
-        h_u0(3, i) = sigma_0
+        h_u0(i, 2) = 0.0d0
+        h_u0(i, 3) = sigma_0
       end if
     end do
 
     ! Boundary conditions at v = v0
     do i = 1, sim_cfg%Nu
       u = sim_cfg%u0 + (i-1) * sim_cfg%du
-      h_v0(1, i) = r00 + u * ru0  ! r(u,v0)
-      h_v0(2, i) = 0.0d0          ! phi(u,v0)
-      h_v0(3, i) = sigma_0        ! sigma(u,v0)
+      h_v0(i, 1) = r00 + u * ru0  ! r(u,v0)
+      h_v0(i, 2) = 0.0d0          ! phi(u,v0)
+      h_v0(i, 3) = sigma_0        ! sigma(u,v0)
     end do
   end subroutine init_cond
 
