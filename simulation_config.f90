@@ -44,7 +44,7 @@ contains
     sim_cfg%u0 = 0.0d0
     sim_cfg%v0 = 5.0d0
     sim_cfg%uf = 30.0d0
-    sim_cfg%vf = 15.0d0
+    sim_cfg%vf = 10.0d0
 
     ! Integration step sizes
     sim_cfg%du = 0.01d0
