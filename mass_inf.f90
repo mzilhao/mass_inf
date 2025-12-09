@@ -23,7 +23,7 @@ program mass_inflation
   double precision, allocatable, dimension(:)   :: h_P, dhdu_P, dhdv_P, dhduv_P
 
   double precision :: mass, drdv, ricci
-  double precision :: Du, Dv, u0, v0, uf, vf
+  double precision :: du, dv, u0, v0, uf, vf
   double precision :: tempu, tempv
   double precision, dimension(5) :: interp_x, interp_y
 
@@ -35,8 +35,8 @@ program mass_inflation
   neq = cfg%neq
 
   ! Create local aliases for readability
-  Du = sim_cfg%Du
-  Dv = sim_cfg%Dv
+  du = sim_cfg%du
+  dv = sim_cfg%dv
   u0 = sim_cfg%u0
   v0 = sim_cfg%v0
   uf = sim_cfg%uf
@@ -51,9 +51,9 @@ program mass_inflation
   ! Initialize boundary conditions (returns allocated h_u0, h_v0)
   call init_cond(h_u0, h_v0, sim_cfg, cfg)
 
-  allocate(plus(sim_cfg%big_dim), minus(sim_cfg%big_dim))
-  allocate(u(sim_cfg%big_dim))
-  allocate(h_v0_new(neq, sim_cfg%big_dim))
+  allocate(plus(sim_cfg%Nu_max), minus(sim_cfg%Nu_max))
+  allocate(u(sim_cfg%Nu_max))
+  allocate(h_v0_new(neq, sim_cfg%Nu_max))
   allocate(h_S(neq), h_E(neq), h_W(neq), h_N(neq), grad(neq))
   allocate(h_P(neq), dhdu_P(neq), dhdv_P(neq), dhduv_P(neq))
 
@@ -63,12 +63,12 @@ program mass_inflation
 
   upos = sim_cfg%u0
   do i = 1, sim_cfg%Nu
-    u(i) = sim_cfg%u0 + (i - 1) * sim_cfg%Du
+    u(i) = sim_cfg%u0 + (i - 1) * sim_cfg%du
   end do
 
   write(10,'(a)') '# | u | v | r | phi | sigma | mass | drdv | Ricci'
 
-  do i = 1, sim_cfg%big_dim
+  do i = 1, sim_cfg%Nu_max
     minus(i) = i - 1
     plus(i)  = i + 1
   end do
@@ -80,7 +80,7 @@ program mass_inflation
   ! em cada passo assumimos que estamos no ponto (u,v).
   do i = 1, sim_cfg%Nv - 1
 
-    ! h_N <- h(u, v + Dv)
+    ! h_N <- h(u, v + dv)
     h_N(:) = h_u0(:, i + 1)
 
     ! preparar novos valores de h_v0
@@ -90,10 +90,10 @@ program mass_inflation
     upos = u0
 
     j = plus(1)
-    v = v + Dv
+    v = v + dv
 
     tempv = abs(v - v0) * sim_cfg%resv
-    if (tempv - int(tempv + Dv*0.1d0) < 1.0d-6) then
+    if (tempv - int(tempv + dv*0.1d0) < 1.0d-6) then
       write(10,'(a)') ''
     end if
 
@@ -101,16 +101,16 @@ program mass_inflation
       write(*,'(a,g10.4,a,g10.4)') 'v = ', v, '|   ', vf
     end if
 
-    ! avancar de u para u + Du
+    ! avancar de u para u + du
     do while (upos - sim_cfg%uf < 0.d0)
 
       jm1 = minus(j)
       ! dizemos que h_S tem o valor de h_v no ponto u, ie, o valor de h no ponto (u,v);
-      ! h_E tem o valor que h_N teve no passo anterior (ie, o valor de h no ponto (u, v + Dv) );
-      ! h_W tem o valor de h no ponto (u + Du, v).
+      ! h_E tem o valor que h_N teve no passo anterior (ie, o valor de h no ponto (u, v + dv) );
+      ! h_W tem o valor de h no ponto (u + du, v).
       h_S(:) = h_v0(:, jm1)  ! h(u, v)
-      h_E(:) = h_N(:)        ! h(u, v + Dv)
-      h_W(:) = h_v0(:, j)    ! h(u + Du, v)
+      h_E(:) = h_N(:)        ! h(u, v + dv)
+      h_W(:) = h_v0(:, j)    ! h(u + du, v)
 
       if (sim_cfg%AMR) then
         grad = abs((h_W - h_S)/h_W)
@@ -152,25 +152,25 @@ program mass_inflation
         end do
       end if
 
-      Du = u(j) - u(minus(j))  ! local Du may change during AMR
+      du = u(j) - u(minus(j))  ! local du may change during AMR
 
-      ! step returns h_N = h(u + Du, v + Dv)
-      call step(h_N, h_S, h_E, h_W, Du, Dv, cfg, 4)
+      ! step returns h_N = h(u + du, v + dv)
+      call step(h_N, h_S, h_E, h_W, du, dv, cfg, 4)
 
       h_P    = 0.5d0*(h_E + h_W)
-      dhdu_P = (h_W - h_S + h_N - h_E)*0.5d0 / Du
-      dhdv_P = (h_E - h_S + h_N - h_W)*0.5d0 / Dv
+      dhdu_P = (h_W - h_S + h_N - h_E)*0.5d0 / du
+      dhdv_P = (h_E - h_S + h_N - h_W)*0.5d0 / dv
 
       call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq, cfg)
       call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
 
       h_v0_new(:, j) = h_N(:)
-      upos = upos + Du
+      upos = upos + du
 
       tempv = abs(v - v0) * sim_cfg%resv
       tempu = abs(u(j) - u0) * sim_cfg%resu
-      if (abs(tempu - int(tempu + Du*0.5d0)) < 1.0d-7 .and. &
-          abs(tempv - int(tempv + Dv*0.5d0)) < 1.0d-7) then
+      if (abs(tempu - int(tempu + du*0.5d0)) < 1.0d-7 .and. &
+          abs(tempv - int(tempv + dv*0.5d0)) < 1.0d-7) then
         call imprime(10, u(j), v, h_N, (/ mass, drdv, ricci /))
       end if
 

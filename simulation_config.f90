@@ -15,7 +15,7 @@ module simulation_config_mod
     double precision :: uf, vf                  ! Domain end
 
     ! Integration step sizes
-    double precision :: Du, Dv                  ! Step sizes in u, v directions
+    double precision :: du, dv                  ! Step sizes in u, v directions
 
     ! AMR (Adaptive Mesh Refinement) parameters
     logical :: AMR                              ! Enable AMR
@@ -29,7 +29,7 @@ module simulation_config_mod
 
     ! Derived values (computed)
     integer :: Nu, Nv                           ! Number of grid points
-    integer :: big_dim                          ! Array allocation size
+    integer :: Nu_max                           ! Array allocation size
   end type simulation_config
 
 contains
@@ -47,8 +47,8 @@ contains
     sim_cfg%vf = 15.0d0
 
     ! Integration step sizes
-    sim_cfg%Du = 0.01d0
-    sim_cfg%Dv = 0.0005d0
+    sim_cfg%du = 0.01d0
+    sim_cfg%dv = 0.0005d0
 
     ! AMR parameters
     sim_cfg%AMR = .true.
@@ -63,11 +63,11 @@ contains
     sim_cfg%m0 = 1.0d0
 
     ! Compute grid dimensions
-    sim_cfg%Nu = int((sim_cfg%uf - sim_cfg%u0) / sim_cfg%Du + 1.001d0)
-    sim_cfg%Nv = int((sim_cfg%vf - sim_cfg%v0) / sim_cfg%Dv + 1.001d0)
+    sim_cfg%Nu = int((sim_cfg%uf - sim_cfg%u0) / sim_cfg%du + 1.001d0)
+    sim_cfg%Nv = int((sim_cfg%vf - sim_cfg%v0) / sim_cfg%dv + 1.001d0)
 
     ! Estimate array allocation size (used for AMR refinement)
-    sim_cfg%big_dim = int(2.0d0 * (sim_cfg%uf - sim_cfg%u0) / sim_cfg%gradmax)
+    sim_cfg%Nu_max = int(2.0d0 * (sim_cfg%uf - sim_cfg%u0) / sim_cfg%gradmax)
   end subroutine init_simulation_config
 
 end module simulation_config_mod

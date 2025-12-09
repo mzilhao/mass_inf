@@ -134,8 +134,8 @@ contains
     q2 = physics_cfg%q2
 
     ! Allocate boundary condition arrays
-    allocate(h_u0(physics_cfg%neq, sim_cfg%big_dim))
-    allocate(h_v0(physics_cfg%neq, sim_cfg%big_dim))
+    allocate(h_u0(physics_cfg%neq, sim_cfg%Nu_max))
+    allocate(h_v0(physics_cfg%neq, sim_cfg%Nu_max))
     h_u0 = 0.0d0
     h_v0 = 0.0d0
 
@@ -154,7 +154,7 @@ contains
 
     ! Boundary conditions at u = u0
     do i = 1, sim_cfg%Nv
-      v = sim_cfg%v0 + (i-1) * sim_cfg%Dv
+      v = sim_cfg%v0 + (i-1) * sim_cfg%dv
       h_u0(1, i) = v  ! r(u0,v)
 
       if (scalarfield) then
@@ -184,7 +184,7 @@ contains
 
     ! Boundary conditions at v = v0
     do i = 1, sim_cfg%Nu
-      u = sim_cfg%u0 + (i-1) * sim_cfg%Du
+      u = sim_cfg%u0 + (i-1) * sim_cfg%du
       h_v0(1, i) = r00 + u * ru0  ! r(u,v0)
       h_v0(2, i) = 0.0d0          ! phi(u,v0)
       h_v0(3, i) = sigma_0        ! sigma(u,v0)
