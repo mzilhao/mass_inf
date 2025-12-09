@@ -22,6 +22,7 @@ program mass_inflation
 
   double precision :: mass, drdv, ricci
   double precision :: du, dv, u0, v0, uf, vf
+  integer          :: Nv, Nu, Nu_max
   double precision :: tempu, tempv
   double precision, dimension(5) :: interp_x, interp_y
 
@@ -39,8 +40,12 @@ program mass_inflation
   v0 = sim_cfg%v0
   uf = sim_cfg%uf
   vf = sim_cfg%vf
+  Nu = sim_cfg%Nu
+  Nv = sim_cfg%Nv
+  Nu_max = sim_cfg%Nu_max
 
   ! Set global config for evolve_wrapper to use
+  ! FIXME: This is a temporary workaround until we refactor evolve_wrapper
   call set_cfg(cfg)
 
   open(unit=10, file=filename)
@@ -49,34 +54,35 @@ program mass_inflation
   ! Initialize boundary conditions (returns allocated h_u0, h_v0)
   call init_cond(h_u0, h_v0, sim_cfg, cfg)
 
-  allocate(plus(sim_cfg%Nu_max), minus(sim_cfg%Nu_max))
-  allocate(u(sim_cfg%Nu_max))
-  allocate(h_v0_new(neq, sim_cfg%Nu_max))
+  allocate(plus(Nu_max), minus(Nu_max))
+  allocate(u(Nu_max))
+  allocate(h_v0_new(neq, Nu_max))
   allocate(h_S(neq), h_E(neq), h_W(neq), h_N(neq))
   allocate(h_P(neq), dhdu_P(neq), dhdv_P(neq), dhduv_P(neq))
 
-  u = 0
+  u = 0.0d0
   plus = 0
   minus = 0
 
-  upos = sim_cfg%u0
-  do i = 1, sim_cfg%Nu
-    u(i) = sim_cfg%u0 + (i - 1) * sim_cfg%du
+  upos = u0
+  do i = 1, Nu
+    u(i) = u0 + (i - 1) * du
   end do
 
-  write(10,'(a)') '# | u | v | r | phi | sigma | mass | drdv | Ricci'
-
-  do i = 1, sim_cfg%Nu_max
+  do i = 1, Nu_max
     minus(i) = i - 1
     plus(i)  = i + 1
   end do
 
-  countlast = sim_cfg%Nu + 1
+  countlast = Nu + 1
   v = sim_cfg%v0
+
+
+  write(10,'(a)') '# | u | v | r | phi | sigma | mass | drdv | Ricci'
 
   ! inicio integracao. i sera' o passo em 'v', j o passo em 'u'.
   ! em cada passo assumimos que estamos no ponto (u,v).
-  do i = 1, sim_cfg%Nv - 1
+  do i = 1, Nv - 1
 
     ! h_N <- h(u, v + dv)
     h_N(:) = h_u0(:, i + 1)

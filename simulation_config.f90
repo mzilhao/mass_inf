@@ -66,7 +66,7 @@ contains
     sim_cfg%Nu = int((sim_cfg%uf - sim_cfg%u0) / sim_cfg%du + 1.001d0)
     sim_cfg%Nv = int((sim_cfg%vf - sim_cfg%v0) / sim_cfg%dv + 1.001d0)
 
-    ! Estimate array allocation size (used for AMR refinement)
+    ! Estimate maximum array allocation size (used for AMR refinement)
     sim_cfg%Nu_max = int(2.0d0 * (sim_cfg%uf - sim_cfg%u0) / sim_cfg%gradmax)
   end subroutine init_simulation_config
 
