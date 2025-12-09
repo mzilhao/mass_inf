@@ -16,7 +16,7 @@ program mass_inflation
   double precision, allocatable, dimension(:,:) :: h_u0, h_v0
   integer,          allocatable, dimension(:)   :: plus, minus
   double precision, allocatable                 :: u(:)
-  double precision, allocatable, dimension(:,:) :: h_v0_new
+  double precision, allocatable, dimension(:,:) :: h_v1
   double precision, allocatable, dimension(:)   :: h_S, h_E, h_W, h_N
   double precision, allocatable, dimension(:)   :: h_P, dhdu_P, dhdv_P, dhduv_P
 
@@ -26,7 +26,7 @@ program mass_inflation
   double precision :: tempu, tempv
   double precision, dimension(5) :: interp_x, interp_y
 
-  integer :: i, j, k, jm1, jm2, jm3, jp1, countlast
+  integer :: i, j, k, jm1, jm2, jm3, jp1, next_idx
   character(len=20), parameter :: filename = 'data.dat'
 
   call init_physics_config(cfg)
@@ -56,72 +56,78 @@ program mass_inflation
 
   allocate(plus(Nu_max), minus(Nu_max))
   allocate(u(Nu_max))
-  allocate(h_v0_new(Nu_max, neq))
+  allocate(h_v1(Nu_max, neq))
   allocate(h_S(neq), h_E(neq), h_W(neq), h_N(neq))
   allocate(h_P(neq), dhdu_P(neq), dhdv_P(neq), dhduv_P(neq))
 
+  ! Array 'u' will hold all values of u on v slices. We start with
+  ! a uniform grid, but this may change with AMR. Linked lists 'plus' and 'minus'
+  ! help us navigate the non-uniform grid.
   u = 0.0d0
   plus = 0
   minus = 0
 
   upos = u0
-  do i = 1, Nu
-    u(i) = u0 + (i - 1) * du
+  do j = 1, Nu
+    u(j) = u0 + (j - 1) * du
   end do
 
-  do i = 1, Nu_max
-    minus(i) = i - 1
-    plus(i)  = i + 1
+  do j = 1, Nu_max
+    minus(j) = j - 1
+    plus(j)  = j + 1
   end do
 
-  countlast = Nu + 1
+  next_idx = Nu + 1
   v = sim_cfg%v0
 
 
   write(10,'(a)') '# | u | v | r | phi | sigma | mass | drdv | Ricci'
 
-  ! inicio integracao. i sera' o passo em 'v', j o passo em 'u'.
-  ! em cada passo assumimos que estamos no ponto (u,v).
+  ! Start the main integration loop. i is the step in 'v'; j the step in 'u'.
+  ! At each step we assume we are at the point (u,v).
   do i = 1, Nv - 1
 
-    ! h_N <- h(u, v + dv)
-    h_N(:) = h_u0(i + 1, :)
-
-    ! preparar novos valores de h_v0
-    h_v0_new(1, :) = h_N(:)
-
-    ! reinicializar posicao em u de cada vez que chegamos ao fim da grelha.
-    upos = u0
-
-    j = plus(1)
-    v = v + dv
-
+    ! FIXME 
+    ! stdout output
     tempv = abs(v - v0) * sim_cfg%resv
     if (tempv - int(tempv + dv*0.1d0) < 1.0d-6) then
       write(10,'(a)') ''
     end if
-
     if (mod(i, 100) == 0 .or. i == 1) then
       write(*,'(a,g10.4,a,g10.4)') 'v = ', v, '|   ', vf
     end if
 
-    ! avancar de u para u + du
-    do while (upos - sim_cfg%uf < 0.d0)
+    ! Reset u position each time we advance in v
+    upos = u0
 
+    v = v + dv
+
+    ! h_N <- h(u, v + dv)
+    h_N(:) = h_u0(i + 1, :)
+
+    ! h_v1 will store all values at points (u, v + dv)
+    h_v1(1, :) = h_N(:)
+
+
+    ! Advance from u to u + du at v + dv
+    j = plus(1)
+    do while (upos < uf)
       jm1 = minus(j)
-      ! dizemos que h_S tem o valor de h_v no ponto u, ie, o valor de h no ponto (u,v);
-      ! h_E tem o valor que h_N teve no passo anterior (ie, o valor de h no ponto (u, v + dv) );
-      ! h_W tem o valor de h no ponto (u + du, v).
-      h_S(:) = h_v0(jm1, :)  ! h(u, v)
+
+      ! h_E holds the values that h_N had in the previous step: h(u, v + dv)
       h_E(:) = h_N(:)        ! h(u, v + dv)
+      h_S(:) = h_v0(jm1, :)  ! h(u, v)
       h_W(:) = h_v0(j, :)    ! h(u + du, v)
 
+      ! Adaptive Mesh Refinement (AMR) in the 'u' direction. If the gradient
+      ! of 'r' between points (u, v) and (u + du, v) exceeds the threshold,
+      ! we add a new point halfway between them by interpolating all
+      ! field values using polynomial interpolation.
       if (sim_cfg%AMR) then
+        ! FIXME: multiplica por 2.
         grad_r = abs((h_W(1) - h_S(1))/(h_W(1) + h_S(1) + 1.0d-16))
 
-        ! testamos a condicao desejada para decidir se diminuimos ou nao o
-        ! passo de integracao. enquanto a condicao desejada nao for satisfeita, vamos
-        ! adicionando pontos adicionais 'a grelha.
+        ! We keep adding points in u until the gradient in r is small enough
         do while (grad_r > sim_cfg%gradmax .and. j >= 4)
           jm1 = minus(j)
           jm2 = minus(jm1)
@@ -141,17 +147,17 @@ program mass_inflation
             h_W(k) = polint((u(j) + u(jm1))*0.5d0, interp_x, interp_y)
           end do
 
-          u(countlast)       = (u(j) + u(jm1))*0.5d0
-          h_v0(countlast, :) = h_W(:)
+          u(next_idx)       = (u(j) + u(jm1))*0.5d0
+          h_v0(next_idx, :) = h_W(:)
 
-          jm1              = minus(j)
-          minus(countlast) = jm1
-          plus(countlast)  = j
-          plus(jm1)        = countlast
-          minus(j)         = countlast
-          j                = countlast
-          countlast        = countlast + 1
+          minus(next_idx) = jm1
+          plus(next_idx)  = j
+          plus(jm1)       = next_idx
+          minus(j)        = next_idx
+          j               = next_idx
+          next_idx        = next_idx + 1
 
+          ! FIXME: see above
           grad_r = abs((h_W(1) - h_S(1))/(h_W(1) + h_S(1) + 1.0d-16))
         end do
       end if
@@ -161,6 +167,10 @@ program mass_inflation
       ! step returns h_N = h(u + du, v + dv)
       call step(h_N, h_S, h_E, h_W, du, dv, cfg, 4)
 
+      h_v1(j, :) = h_N(:)
+      upos = upos + du
+
+      ! FIXME.
       h_P    = 0.5d0*(h_E + h_W)
       dhdu_P = (h_W - h_S + h_N - h_E)*0.5d0 / du
       dhdv_P = (h_E - h_S + h_N - h_W)*0.5d0 / dv
@@ -168,9 +178,8 @@ program mass_inflation
       call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq, cfg)
       call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
 
-      h_v0_new(j, :) = h_N(:)
-      upos = upos + du
-
+      ! FIXME
+      ! Output data at specified resolution
       tempv = abs(v - v0) * sim_cfg%resv
       tempu = abs(u(j) - u0) * sim_cfg%resu
       if (abs(tempu - int(tempu + du*0.5d0)) < 1.0d-7 .and. &
@@ -180,17 +189,17 @@ program mass_inflation
 
       j = plus(j)
 
-    end do  ! ciclo while
+    end do ! do while in the u direction
 
-    ! finalmente podemos escrever h_v0_new em h_v0 (e' ineficiente copiar o array todo)
-    do k = 1, countlast + 1
-      h_v0(k, :) = h_v0_new(k, :)
+    ! finalmente podemos escrever h_v1 em h_v0 (e' ineficiente copiar o array todo)
+    do k = 1, next_idx + 1
+      h_v0(k, :) = h_v1(k, :)
     end do
 
   end do
 
   close(10)
 
-  deallocate(h_u0, h_v0, u, minus, plus, h_v0_new)
+  deallocate(h_u0, h_v0, u, minus, plus, h_v1)
 
 end program mass_inflation
