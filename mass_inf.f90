@@ -36,7 +36,7 @@ program mass_inflation
   type(physics_config)    :: cfg
   type(simulation_config) :: sim_cfg
   integer                 :: neq
-  double precision        :: upos, v, grad_r
+  double precision        :: upos, v, grad_r = 0.0d0
 
   double precision, allocatable, dimension(:,:) :: h_u0, h_v0
   integer,          allocatable, dimension(:)   :: plus, minus
@@ -49,10 +49,16 @@ program mass_inflation
   double precision :: du, dv, u0, v0, uf, vf
   integer          :: Nv, Nu, Nu_max
   double precision :: tempu, tempv
-  double precision, dimension(5) :: interp_x, interp_y
 
   integer :: i, j, k, jm1, jm2, jm3, jp1, next_idx
   character(len=20), parameter :: filename = 'data.dat'
+
+  ! Named constants for clarity
+  integer, parameter :: N_PICARD_ITERATIONS = 4
+  integer, parameter :: N_INTERP_POINTS = 5
+  double precision, parameter :: OUTPUT_TOLERANCE_V = 1.0d-6
+  double precision, parameter :: OUTPUT_TOLERANCE_U = 1.0d-7
+  double precision, dimension(N_INTERP_POINTS) :: interp_x, interp_y
 
   call init_physics_config(cfg)
   call init_simulation_config(sim_cfg)
@@ -111,7 +117,7 @@ program mass_inflation
     ! FIXME 
     ! stdout output
     tempv = abs(v - v0) * sim_cfg%resv
-    if (tempv - int(tempv + dv*0.1d0) < 1.0d-6) then
+    if (tempv - int(tempv + dv*0.1d0) < OUTPUT_TOLERANCE_V) then
       write(10,'(a)') ''
     end if
     if (mod(i, 100) == 0 .or. i == 1) then
@@ -164,10 +170,10 @@ program mass_inflation
               interp_y = (/ h_v0(1,k), h_v0(jm3,k), h_v0(jm2,k), h_v0(jm1,k), &
                             h_v0(j,k) /)
             end if
-            h_W(k) = polint((u(j) + u(jm1))*0.5d0, interp_x, interp_y)
+            h_W(k) = polint((u(j) + u(jm1)) * 0.5d0, interp_x, interp_y)
           end do
 
-          u(next_idx)       = (u(j) + u(jm1))*0.5d0
+          u(next_idx)       = (u(j) + u(jm1)) * 0.5d0
           h_v0(next_idx, :) = h_W(:)
 
           minus(next_idx) = jm1
@@ -184,15 +190,15 @@ program mass_inflation
       du = u(j) - u(minus(j))  ! local du may change during AMR
 
       ! step returns h_N = h(u + du, v + dv)
-      call step(h_N, h_S, h_E, h_W, du, dv, cfg, 4)
+      call step(h_N, h_S, h_E, h_W, du, dv, cfg, N_PICARD_ITERATIONS)
 
       h_v1(j, :) = h_N(:)
       upos = upos + du
 
       ! FIXME. diagnostics and output
       h_P = 0.25d0 * (h_N + h_S + h_E - h_W)
-      dhdu_P = (h_W - h_S + h_N - h_E)*0.5d0 / du
-      dhdv_P = (h_E - h_S + h_N - h_W)*0.5d0 / dv
+      dhdu_P = (h_W - h_S + h_N - h_E) * 0.5d0 / du
+      dhdv_P = (h_E - h_S + h_N - h_W) * 0.5d0 / dv
 
       call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq, cfg)
       call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
@@ -201,8 +207,8 @@ program mass_inflation
       ! Output data at specified resolution
       tempv = abs(v - v0) * sim_cfg%resv
       tempu = abs(u(j) - u0) * sim_cfg%resu
-      if (abs(tempu - int(tempu + du*0.5d0)) < 1.0d-7 .and. &
-          abs(tempv - int(tempv + dv*0.5d0)) < 1.0d-7) then
+      if (abs(tempu - int(tempu + du*0.5d0)) < OUTPUT_TOLERANCE_U .and. &
+          abs(tempv - int(tempv + dv*0.5d0)) < OUTPUT_TOLERANCE_U) then
         call imprime(10, u(j), v, h_N, (/ mass, drdv, ricci /))
       end if
 
