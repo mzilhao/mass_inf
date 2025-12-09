@@ -26,7 +26,7 @@ program mass_inflation
   use physics_config_mod
   use simulation_config_mod
   use functions
-  use evolve_wrapper, only: step, set_cfg
+  use evolve_wrapper, only: step
   use polint_mod
   use imprime_mod
   use amr_helpers
@@ -68,10 +68,6 @@ program mass_inflation
   Nu = sim_cfg%Nu
   Nv = sim_cfg%Nv
   Nu_max = sim_cfg%Nu_max
-
-  ! Set global config for evolve_wrapper to use
-  ! FIXME: This is a temporary workaround until we refactor evolve_wrapper
-  call set_cfg(cfg)
 
   open(unit=10, file=filename)
   call print_simulation_header(10, cfg, 0.0d0)
