@@ -55,13 +55,13 @@ $(OBJDIR_DEBUG)/%.o: $(SRCDIR)/%.f90
 $(OBJDIR_RELEASE)/functions.o: $(OBJDIR_RELEASE)/simulation_config.o
 $(OBJDIR_RELEASE)/pde_stepper.o: $(OBJDIR_RELEASE)/functions.o
 $(OBJDIR_RELEASE)/evolve.o: $(OBJDIR_RELEASE)/pde_stepper.o $(OBJDIR_RELEASE)/functions.o
-$(OBJDIR_RELEASE)/mass_inf.o: $(OBJDIR_RELEASE)/functions.o $(OBJDIR_RELEASE)/evolve.o $(OBJDIR_RELEASE)/simulation_config.o $(OBJDIR_RELEASE)/polint.o $(OBJDIR_RELEASE)/imprime.o
+$(OBJDIR_RELEASE)/mass_inf.o: $(OBJDIR_RELEASE)/functions.o $(OBJDIR_RELEASE)/evolve.o $(OBJDIR_RELEASE)/simulation_config.o $(OBJDIR_RELEASE)/polint.o
 
 # Module dependencies for debug build
 $(OBJDIR_DEBUG)/functions.o: $(OBJDIR_DEBUG)/simulation_config.o
 $(OBJDIR_DEBUG)/pde_stepper.o: $(OBJDIR_DEBUG)/functions.o
 $(OBJDIR_DEBUG)/evolve.o: $(OBJDIR_DEBUG)/pde_stepper.o $(OBJDIR_DEBUG)/functions.o
-$(OBJDIR_DEBUG)/mass_inf.o: $(OBJDIR_DEBUG)/functions.o $(OBJDIR_DEBUG)/evolve.o $(OBJDIR_DEBUG)/simulation_config.o $(OBJDIR_DEBUG)/polint.o $(OBJDIR_DEBUG)/imprime.o
+$(OBJDIR_DEBUG)/mass_inf.o: $(OBJDIR_DEBUG)/functions.o $(OBJDIR_DEBUG)/evolve.o $(OBJDIR_DEBUG)/simulation_config.o $(OBJDIR_DEBUG)/polint.o
 
 # Clean build artifacts
 clean:

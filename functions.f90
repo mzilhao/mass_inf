@@ -19,7 +19,7 @@ module functions
   implicit none
   private
   public :: F, init_physics_config, init_cond, print_simulation_header
-  public :: compute_diagnostics
+  public :: compute_diagnostics, write_output_if_needed, write_output_header, write_output_separator
 
 contains
 
@@ -190,6 +190,65 @@ contains
       h_v0(i, 3) = sigma_0        ! sigma(u,v0)
     end do
   end subroutine init_cond
+
+  !====================================================================================
+  !> Initialize output file with physics model header
+  subroutine write_output_header(output_unit, cfg)
+    integer, intent(in) :: output_unit
+    type(physics_config), intent(in) :: cfg
+
+    call print_simulation_header(output_unit, cfg, 0.0d0)
+    write(output_unit,'(a)') '# | u | v | r | phi | sigma | mass | drdv | Ricci'
+  end subroutine write_output_header
+
+  !====================================================================================
+  !> Compute diagnostics and write them if output cadence is met
+  !!
+  !! This routine handles both diagnostic computation and output filtering.
+  !! It encapsulates which quantities are physically meaningful to output,
+  !! making it easy to swap for a different physics model.
+  subroutine write_output_if_needed(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, &
+                                     u0, v0, sim_cfg, cfg, OUTPUT_TOL_U, OUTPUT_TOL_V)
+    integer, intent(in)                 :: output_unit
+    double precision, intent(in)        :: u_val, v_val, du, dv, u0, v0
+    double precision, dimension(:), intent(in) :: h_N, h_S, h_E, h_W
+    type(simulation_config), intent(in) :: sim_cfg
+    type(physics_config),    intent(in) :: cfg
+    double precision, intent(in)        :: OUTPUT_TOL_U, OUTPUT_TOL_V
+
+    integer :: neq_local
+    double precision :: tempu, tempv
+    double precision, dimension(:), allocatable :: h_P, dhdu_P, dhdv_P, dhduv_P
+    double precision :: mass, drdv, ricci
+
+    neq_local = size(h_N)
+    allocate(h_P(neq_local), dhdu_P(neq_local), dhdv_P(neq_local), dhduv_P(neq_local))
+
+    h_P     = 0.25d0 * (h_N + h_S + h_E - h_W)
+    dhdu_P  = (h_W - h_S + h_N - h_E) * 0.5d0 / du
+    dhdv_P  = (h_E - h_S + h_N - h_W) * 0.5d0 / dv
+
+    call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq_local, cfg)
+    call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
+
+    tempv = abs(v_val - v0) * sim_cfg%resv
+    tempu = abs(u_val - u0) * sim_cfg%resu
+    if (abs(tempu - int(tempu + du*0.5d0)) < OUTPUT_TOL_U .and. &
+        abs(tempv - int(tempv + dv*0.5d0)) < OUTPUT_TOL_V) then
+      write(output_unit,*) (/ u_val, v_val, h_N, (/ mass, drdv, ricci /) /)
+    end if
+
+    deallocate(h_P, dhdu_P, dhdv_P, dhduv_P)
+  end subroutine write_output_if_needed
+
+  !====================================================================================
+  !> Write output separator (blank line) for gnuplot block separation
+  !! This is a physics model choice: some output formats may need separators
+  !! between data blocks for proper parsing.
+  subroutine write_output_separator(output_unit)
+    integer, intent(in) :: output_unit
+    write(output_unit,'(a)') ''
+  end subroutine write_output_separator
 
   !====================================================================================
 end module functions

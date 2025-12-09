@@ -28,14 +28,13 @@ program mass_inflation
   use functions
   use evolve_wrapper, only: step
   use polint_mod
-  use imprime_mod
   use amr_helpers
   implicit none
 
   ! Physics and simulation configuration
   type(physics_config)    :: cfg
   type(simulation_config) :: sim_cfg
-  integer                 :: neq
+  integer                 :: neq, output_unit
   double precision        :: upos, v, grad_r = 0.0d0
 
   double precision, allocatable, dimension(:,:) :: h_u0, h_v0
@@ -43,7 +42,6 @@ program mass_inflation
   double precision, allocatable                 :: u(:)
   double precision, allocatable, dimension(:,:) :: h_v1
   double precision, allocatable, dimension(:)   :: h_S, h_E, h_W, h_N
-  double precision, allocatable, dimension(:)   :: h_P, dhdu_P, dhdv_P, dhduv_P
 
   double precision :: mass, drdv, ricci
   double precision :: du, dv, u0, v0, uf, vf
@@ -75,8 +73,8 @@ program mass_inflation
   Nv = sim_cfg%Nv
   Nu_max = sim_cfg%Nu_max
 
-  open(unit=10, file=filename)
-  call print_simulation_header(10, cfg, 0.0d0)
+  open(newunit=output_unit, file=filename, status='replace')
+  call write_output_header(output_unit, cfg)
 
   ! Initialize boundary conditions (returns allocated h_u0, h_v0)
   call init_cond(h_u0, h_v0, sim_cfg, cfg)
@@ -85,7 +83,6 @@ program mass_inflation
   allocate(u(Nu_max))
   allocate(h_v1(Nu_max, neq))
   allocate(h_S(neq), h_E(neq), h_W(neq), h_N(neq))
-  allocate(h_P(neq), dhdu_P(neq), dhdv_P(neq), dhduv_P(neq))
 
   ! Array 'u' will hold all values of u on v slices. We start with
   ! a uniform grid, but this may change with AMR. Linked lists 'plus' and 'minus'
@@ -108,18 +105,19 @@ program mass_inflation
   v = sim_cfg%v0
 
 
-  write(10,'(a)') '# | u | v | r | phi | sigma | mass | drdv | Ricci'
-
   ! Start the main integration loop. i is the step in 'v'; j the step in 'u'.
   ! At each step we assume we are at the point (u,v).
   do i = 1, Nv - 1
 
-    ! FIXME 
-    ! stdout output
+    ! FIXME
+    ! Output separator line, for easier parsing of data files
     tempv = abs(v - v0) * sim_cfg%resv
     if (tempv - int(tempv + dv*0.1d0) < OUTPUT_TOLERANCE_V) then
-      write(10,'(a)') ''
+      call write_output_separator(output_unit)
     end if
+
+    ! FIXME
+    ! stdout output
     if (mod(i, 100) == 0 .or. i == 1) then
       write(*,'(a,g10.4,a,g10.4)') 'v = ', v, '|   ', vf
     end if
@@ -185,7 +183,7 @@ program mass_inflation
 
           grad_r = relative_gradient(h_W(1), h_S(1))
         end do
-      end if
+      end if ! end AMR
 
       du = u(j) - u(minus(j))  ! local du may change during AMR
 
@@ -195,22 +193,8 @@ program mass_inflation
       h_v1(j, :) = h_N(:)
       upos = upos + du
 
-      ! FIXME. diagnostics and output
-      h_P = 0.25d0 * (h_N + h_S + h_E - h_W)
-      dhdu_P = (h_W - h_S + h_N - h_E) * 0.5d0 / du
-      dhdv_P = (h_E - h_S + h_N - h_W) * 0.5d0 / dv
-
-      call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq, cfg)
-      call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
-
-      ! FIXME
-      ! Output data at specified resolution
-      tempv = abs(v - v0) * sim_cfg%resv
-      tempu = abs(u(j) - u0) * sim_cfg%resu
-      if (abs(tempu - int(tempu + du*0.5d0)) < OUTPUT_TOLERANCE_U .and. &
-          abs(tempv - int(tempv + dv*0.5d0)) < OUTPUT_TOLERANCE_U) then
-        call imprime(10, u(j), v, h_N, (/ mass, drdv, ricci /))
-      end if
+      call write_output_if_needed(output_unit, u(j), v, h_N, h_S, h_E, h_W, du, dv, &
+                                   u0, v0, sim_cfg, cfg, OUTPUT_TOLERANCE_U, OUTPUT_TOLERANCE_V)
 
       j = plus(j)
 
@@ -223,7 +207,7 @@ program mass_inflation
 
   end do
 
-  close(10)
+  close(output_unit)
 
   deallocate(h_u0, h_v0, u, minus, plus, h_v1)
 
