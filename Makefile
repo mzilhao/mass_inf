@@ -13,8 +13,10 @@ OBJDIR = obj
 OBJDIR_RELEASE = $(OBJDIR)/release
 OBJDIR_DEBUG = $(OBJDIR)/debug
 
-# Create directories if they don't exist
-$(shell mkdir -p $(BINDIR) $(OBJDIR_RELEASE) $(OBJDIR_DEBUG))
+# Create directories target
+.PHONY: dirs
+dirs:
+	mkdir -p $(BINDIR) $(OBJDIR_RELEASE) $(OBJDIR_DEBUG)
 
 # Automatically discover source files and compute object files
 SOURCES = $(wildcard $(SRCDIR)/*.f90)
@@ -23,15 +25,30 @@ OBJECTS_DEBUG = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR_DEBUG)/%.o,$(SOURCES))
 
 # Phony targets
 .PHONY: all release debug clean distclean test test-save-reference help
+.PHONY: profile profile-report
 
 # Default target: release build
 all: release
 
 # Release build (optimized)
-release: $(BINDIR)/mass_inf
+release: dirs $(BINDIR)/mass_inf
 
 # Debug build (with bounds checking and traps)
-debug: $(BINDIR)/mass_inf-debug
+debug: dirs $(BINDIR)/mass_inf-debug
+
+# Profile build (gprof instrumentation)
+profile: FCFLAGS_RELEASE := -O2 -pg
+profile: LDFLAGS := -pg
+profile: clean dirs $(BINDIR)/mass_inf-prof
+
+# Link profile executable
+$(BINDIR)/mass_inf-prof: $(OBJECTS_RELEASE)
+	$(FC) $(FCFLAGS_RELEASE) -o $@ $^ $(LDFLAGS)
+
+# Generate gprof report
+profile-report: profile
+	gprof $(BINDIR)/mass_inf-prof gmon.out > gprof.txt
+	@echo "✓ gprof report written to gprof.txt"
 
 # Link release executable
 $(BINDIR)/mass_inf: $(OBJECTS_RELEASE)
@@ -88,6 +105,8 @@ help:
 	@echo "  make all                  - Build release (optimized) version (default)"
 	@echo "  make release              - Build optimized version"
 	@echo "  make debug                - Build debug version with checks"
+	@echo "  make profile              - Build instrumented binary for gprof (bin/mass_inf-prof)"
+	@echo "  make profile-report       - Build + run to generate gprof.txt from gmon.out"
 	@echo "  make test                 - Run numerical regression tests"
 	@echo "  make test-save-reference  - Save current data.dat as reference"
 	@echo "  make clean                - Remove build artifacts"
