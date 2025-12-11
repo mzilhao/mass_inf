@@ -29,7 +29,7 @@ program mass_inflation
   use evolve_wrapper, only: step
   use polint_mod
   use amr_helpers
-  use progress_utils, only: report_progress
+  use progress_utils, only: report_progress, print_banner
   implicit none
 
   ! Physics and simulation configuration
@@ -63,6 +63,8 @@ program mass_inflation
   call init_physics_config(cfg)
   call init_simulation_config(sim_cfg)
   neq = cfg%neq
+
+  call print_banner()
 
   ! Create local aliases for readability
   du = sim_cfg%du
