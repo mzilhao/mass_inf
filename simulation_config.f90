@@ -24,6 +24,10 @@ module simulation_config_mod
     ! Output resolution (sampling rate for printed results)
     integer :: resu, resv
 
+    ! Progress reporting cadence (stdout)
+    integer :: progress_stride
+    integer :: progress_header_stride
+
     ! Initial conditions
     double precision :: m0                      ! Initial mass parameter
 
@@ -58,6 +62,10 @@ contains
     ! Output resolution (print every Nth point)
     sim_cfg%resu = 20
     sim_cfg%resv = 20
+
+    ! Progress reporting cadence (stdout)
+    sim_cfg%progress_stride = 100
+    sim_cfg%progress_header_stride = 1000
 
     ! Initial condition scale
     sim_cfg%m0 = 1.0d0

@@ -29,6 +29,7 @@ program mass_inflation
   use evolve_wrapper, only: step
   use polint_mod
   use amr_helpers
+  use progress_utils, only: report_progress
   implicit none
 
   ! Physics and simulation configuration
@@ -45,6 +46,7 @@ program mass_inflation
 
   double precision :: mass, drdv, ricci
   double precision :: du, dv, u0, v0, uf, vf
+  double precision :: start_time_cpu
   integer          :: Nv, Nu, Nu_max
   double precision :: tempu, tempv
 
@@ -72,6 +74,8 @@ program mass_inflation
   Nu = sim_cfg%Nu
   Nv = sim_cfg%Nv
   Nu_max = sim_cfg%Nu_max
+
+  call cpu_time(start_time_cpu)
 
   open(newunit=output_unit, file=filename, status='replace')
   call write_output_header(output_unit, cfg)
@@ -116,11 +120,8 @@ program mass_inflation
       call write_output_separator(output_unit)
     end if
 
-    ! FIXME
-    ! stdout output
-    if (mod(i, 100) == 0 .or. i == 1) then
-      write(*,'(a,g10.4,a,g10.4)') 'v = ', v, '|   ', vf
-    end if
+    ! Progress output to stdout (cadence controlled by simulation config)
+    call report_progress(i, v, vf, start_time_cpu, h_v0, next_idx, sim_cfg%progress_stride, sim_cfg%progress_header_stride)
 
     ! Reset u position each time we advance in v
     upos = u0
@@ -210,5 +211,4 @@ program mass_inflation
   close(output_unit)
 
   deallocate(h_u0, h_v0, u, minus, plus, h_v1)
-
 end program mass_inflation
