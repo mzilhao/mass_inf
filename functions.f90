@@ -221,6 +221,15 @@ contains
     double precision, dimension(:), allocatable :: h_P, dhdu_P, dhdv_P, dhduv_P
     double precision :: mass, drdv, ricci
 
+    ! Check output condition FIRST before doing any work
+    tempv = abs(v_val - v0) * sim_cfg%resv
+    tempu = abs(u_val - u0) * sim_cfg%resu
+    if (.not. (abs(tempu - int(tempu + du*0.5d0)) < OUTPUT_TOL_U .and. &
+               abs(tempv - int(tempv + dv*0.5d0)) < OUTPUT_TOL_V)) then
+      return
+    end if
+
+
     neq_local = size(h_N)
     allocate(h_P(neq_local), dhdu_P(neq_local), dhdv_P(neq_local), dhduv_P(neq_local))
 
@@ -231,12 +240,7 @@ contains
     call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq_local, cfg)
     call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
 
-    tempv = abs(v_val - v0) * sim_cfg%resv
-    tempu = abs(u_val - u0) * sim_cfg%resu
-    if (abs(tempu - int(tempu + du*0.5d0)) < OUTPUT_TOL_U .and. &
-        abs(tempv - int(tempv + dv*0.5d0)) < OUTPUT_TOL_V) then
-      write(output_unit,*) (/ u_val, v_val, h_N, (/ mass, drdv, ricci /) /)
-    end if
+    write(output_unit,*) (/ u_val, v_val, h_N, (/ mass, drdv, ricci /) /)
 
     deallocate(h_P, dhdu_P, dhdv_P, dhduv_P)
   end subroutine write_output_if_needed
