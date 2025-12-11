@@ -1,115 +1,91 @@
 FC = gfortran
-FCFLAGS_RELEASE = -O3 -march=native -fno-unsafe-math-optimizations
+FCFLAGS = -O3 -march=native -fno-unsafe-math-optimizations
 FCFLAGS_DEBUG = -g -Wall -Wextra -Wno-unused-dummy-argument -fcheck=all \
                 -ffpe-trap=invalid,zero,overflow -Wno-maybe-uninitialized
-MODFLAGS_RELEASE = -J$(OBJDIR_RELEASE)
-MODFLAGS_DEBUG = -J$(OBJDIR_DEBUG)
+FCFLAGS_PROFILE = -O2 -pg
 LDFLAGS =
 
 # Directories
-SRCDIR = .
 BINDIR = bin
 OBJDIR = obj
-OBJDIR_RELEASE = $(OBJDIR)/release
-OBJDIR_DEBUG = $(OBJDIR)/debug
 
-# Create directories target
-.PHONY: dirs
-dirs:
-	mkdir -p $(BINDIR) $(OBJDIR_RELEASE) $(OBJDIR_DEBUG)
-
-# Automatically discover source files and compute object files
-SOURCES = $(wildcard $(SRCDIR)/*.f90)
-OBJECTS_RELEASE = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR_RELEASE)/%.o,$(SOURCES))
-OBJECTS_DEBUG = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR_DEBUG)/%.o,$(SOURCES))
+# Source files and objects
+SOURCES = $(wildcard *.f90)
+OBJECTS = $(patsubst %.f90,$(OBJDIR)/%.o,$(SOURCES))
+OBJECTS_DEBUG = $(patsubst %.f90,$(OBJDIR)/debug_%.o,$(SOURCES))
 
 # Phony targets
-.PHONY: all release debug clean distclean test test-save-reference help
-.PHONY: profile profile-report
+.PHONY: all debug profile clean distclean test test-save-reference help
 
-# Default target: release build
-all: release
+# Default target
+all: $(BINDIR)/mass_inf
 
-# Release build (optimized)
-release: dirs $(BINDIR)/mass_inf
+# Main executable
+$(BINDIR)/mass_inf: $(OBJECTS) | $(BINDIR)
+	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
 
-# Debug build (with bounds checking and traps)
-debug: dirs $(BINDIR)/mass_inf-debug
+# Debug build
+debug: $(BINDIR)/mass_inf-debug
 
-# Profile build (gprof instrumentation)
-profile: FCFLAGS_RELEASE := -O2 -pg
-profile: LDFLAGS := -pg
-profile: clean dirs $(BINDIR)/mass_inf-prof
-
-# Link profile executable
-$(BINDIR)/mass_inf-prof: $(OBJECTS_RELEASE)
-	$(FC) $(FCFLAGS_RELEASE) -o $@ $^ $(LDFLAGS)
-
-# Generate gprof report
-profile-report: profile
-	gprof $(BINDIR)/mass_inf-prof gmon.out > gprof.txt
-	@echo "✓ gprof report written to gprof.txt"
-
-# Link release executable
-$(BINDIR)/mass_inf: $(OBJECTS_RELEASE)
-	$(FC) $(FCFLAGS_RELEASE) -o $@ $^ $(LDFLAGS)
-
-# Link debug executable
-$(BINDIR)/mass_inf-debug: $(OBJECTS_DEBUG)
+$(BINDIR)/mass_inf-debug: $(OBJECTS_DEBUG) | $(BINDIR)
 	$(FC) $(FCFLAGS_DEBUG) -o $@ $^ $(LDFLAGS)
 
+# Profile build
+profile: clean
+	$(MAKE) FCFLAGS="$(FCFLAGS_PROFILE)" LDFLAGS="-pg" $(BINDIR)/mass_inf-prof
+
+$(BINDIR)/mass_inf-prof: $(OBJECTS) | $(BINDIR)
+	$(FC) $(FCFLAGS_PROFILE) -o $@ $^ -pg
+
 # Compile release objects
-$(OBJDIR_RELEASE)/%.o: $(SRCDIR)/%.f90
-	$(FC) $(FCFLAGS_RELEASE) $(MODFLAGS_RELEASE) -c -o $@ $<
+$(OBJDIR)/%.o: %.f90 | $(OBJDIR)
+	$(FC) $(FCFLAGS) -J$(OBJDIR) -c -o $@ $<
 
 # Compile debug objects
-$(OBJDIR_DEBUG)/%.o: $(SRCDIR)/%.f90
-	$(FC) $(FCFLAGS_DEBUG) $(MODFLAGS_DEBUG) -c -o $@ $<
+$(OBJDIR)/debug_%.o: %.f90 | $(OBJDIR)
+	$(FC) $(FCFLAGS_DEBUG) -J$(OBJDIR) -c -o $@ $<
 
-# Module dependencies for release build
-# simulation_config_mod must be built first (no physics dependency)
-# functions.f90 contains physics_config_mod, must be built next
-$(OBJDIR_RELEASE)/functions.o: $(OBJDIR_RELEASE)/simulation_config.o
-$(OBJDIR_RELEASE)/pde_stepper.o: $(OBJDIR_RELEASE)/functions.o
-$(OBJDIR_RELEASE)/evolve.o: $(OBJDIR_RELEASE)/pde_stepper.o $(OBJDIR_RELEASE)/functions.o
-$(OBJDIR_RELEASE)/mass_inf.o: $(OBJDIR_RELEASE)/functions.o $(OBJDIR_RELEASE)/evolve.o $(OBJDIR_RELEASE)/simulation_config.o $(OBJDIR_RELEASE)/polint.o $(OBJDIR_RELEASE)/progress_utils.o
+# Module dependencies
+$(OBJDIR)/functions.o: $(OBJDIR)/simulation_config.o
+$(OBJDIR)/pde_stepper.o: $(OBJDIR)/functions.o
+$(OBJDIR)/evolve.o: $(OBJDIR)/pde_stepper.o $(OBJDIR)/functions.o
+$(OBJDIR)/mass_inf.o: $(OBJDIR)/functions.o $(OBJDIR)/evolve.o $(OBJDIR)/simulation_config.o $(OBJDIR)/polint.o $(OBJDIR)/progress_utils.o
 
-# Module dependencies for debug build
-$(OBJDIR_DEBUG)/functions.o: $(OBJDIR_DEBUG)/simulation_config.o
-$(OBJDIR_DEBUG)/pde_stepper.o: $(OBJDIR_DEBUG)/functions.o
-$(OBJDIR_DEBUG)/evolve.o: $(OBJDIR_DEBUG)/pde_stepper.o $(OBJDIR_DEBUG)/functions.o
-$(OBJDIR_DEBUG)/mass_inf.o: $(OBJDIR_DEBUG)/functions.o $(OBJDIR_DEBUG)/evolve.o $(OBJDIR_DEBUG)/simulation_config.o $(OBJDIR_DEBUG)/polint.o $(OBJDIR_DEBUG)/progress_utils.o
+$(OBJDIR)/debug_functions.o: $(OBJDIR)/debug_simulation_config.o
+$(OBJDIR)/debug_pde_stepper.o: $(OBJDIR)/debug_functions.o
+$(OBJDIR)/debug_evolve.o: $(OBJDIR)/debug_pde_stepper.o $(OBJDIR)/debug_functions.o
+$(OBJDIR)/debug_mass_inf.o: $(OBJDIR)/debug_functions.o $(OBJDIR)/debug_evolve.o $(OBJDIR)/debug_simulation_config.o $(OBJDIR)/debug_polint.o $(OBJDIR)/debug_progress_utils.o
+
+# Create directories
+$(BINDIR) $(OBJDIR):
+	mkdir -p $@
 
 # Clean build artifacts
 clean:
-	rm -rf $(OBJDIR) $(BINDIR) *.mod *.MOD
+	rm -rf $(OBJDIR) $(BINDIR) *.mod *.MOD gmon.out
 
-# Full cleanup (removes all generated files)
+# Full cleanup
 distclean: clean
-	rm -f data.dat test/output_data.dat
+	rm -f data.dat timing.log gprof.txt
 
-# Run numerical regression tests
-test: release
+# Run tests
+test: all
 	@./test/run_tests.sh
 
-# Create/update reference data for regression tests
-test-save-reference: release
+# Save reference data
+test-save-reference: all
 	@echo "Saving current output as reference data..."
 	@$(BINDIR)/mass_inf > /dev/null 2>&1
 	@cp data.dat test/reference_data.dat
 	@echo "✓ Reference data saved to test/reference_data.dat"
 
-# Help target
+# Help
 help:
 	@echo "Available targets:"
-	@echo "  make all                  - Build release (optimized) version (default)"
-	@echo "  make release              - Build optimized version"
-	@echo "  make debug                - Build debug version with checks"
-	@echo "  make profile              - Build instrumented binary for gprof (bin/mass_inf-prof)"
-	@echo "  make profile-report       - Build + run to generate gprof.txt from gmon.out"
-	@echo "  make test                 - Run numerical regression tests"
-	@echo "  make test-save-reference  - Save current data.dat as reference"
-	@echo "  make clean                - Remove build artifacts"
-	@echo "  make distclean            - Remove all generated files"
-	@echo "  make help                 - Show this message"
-
+	@echo "  make           - Build optimized binary (default)"
+	@echo "  make debug     - Build with debug flags and checks"
+	@echo "  make profile   - Build with gprof instrumentation"
+	@echo "  make test      - Run regression tests"
+	@echo "  make clean     - Remove build artifacts"
+	@echo "  make distclean - Remove all generated files"
+	@echo "  make help      - Show this message"
