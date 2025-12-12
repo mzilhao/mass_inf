@@ -242,9 +242,7 @@ subroutine write_output_if_needed(output_unit, u_val, v_val, h_N, h_S, h_E, h_W,
 end subroutine write_output_if_needed
 
 !====================================================================================
-!> Write output separator (blank line) for gnuplot block separation
-!! This is a physics model choice: some output formats may need separators
-!! between data blocks for proper parsing.
+! output separator (blank line) to separate v-blocks.
 subroutine write_output_separator(output_unit)
   integer, intent(in) :: output_unit
   write(output_unit,'(a)') ''
