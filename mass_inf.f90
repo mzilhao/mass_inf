@@ -130,7 +130,7 @@ program mass_inflation
         reldiff_r = relative_difference(h_W(1), h_S(1))
 
         ! We keep adding points in u until the gradient in r is small enough
-        do while (reldiff_r > sim_cfg%gradmax .and. j >= 4)
+        do while (reldiff_r > sim_cfg%reldiff_max .and. j >= 4)
           jm1 = minus(j)
           jm2 = minus(jm1)
           jm3 = minus(jm2)

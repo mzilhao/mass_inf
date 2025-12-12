@@ -19,7 +19,7 @@ module simulation_config_mod
 
     ! AMR (Adaptive Mesh Refinement) parameters
     logical :: AMR                              ! Enable AMR
-    double precision :: gradmax, gradmin        ! Gradient thresholds
+    double precision :: reldiff_max             ! Thresholds for refinement
 
     ! Output resolution (sampling rate for printed results)
     integer :: resu, resv
@@ -56,8 +56,7 @@ contains
 
     ! AMR parameters
     sim_cfg%AMR = .true.
-    sim_cfg%gradmax = 0.0001d0
-    sim_cfg%gradmin = 0.1d0  ! Currently unused
+    sim_cfg%reldiff_max = 0.0001d0
 
     ! Output resolution (print every Nth point)
     sim_cfg%resu = 20
@@ -75,7 +74,7 @@ contains
     sim_cfg%Nv = int((sim_cfg%vf - sim_cfg%v0) / sim_cfg%dv + 1.001d0)
 
     ! Estimate maximum array allocation size (used for AMR refinement)
-    sim_cfg%Nu_max = int(2.0d0 * (sim_cfg%uf - sim_cfg%u0) / sim_cfg%gradmax)
+    sim_cfg%Nu_max = int(2.0d0 * (sim_cfg%uf - sim_cfg%u0) / sim_cfg%reldiff_max)
   end subroutine init_simulation_config
 
 end module simulation_config_mod
