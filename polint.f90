@@ -9,13 +9,13 @@ module polint_mod
 
 contains
 
-  !> Lagrange polynomial interpolation/extrapolation
-  !! Input:
-  !!   xa, ya : known data points (arrays of size N)
-  !!   x      : point to interpolate at
-  !! Output:
-  !!   polint : interpolated value at x
-  function polint(x, xa, ya)
+!> Lagrange polynomial interpolation/extrapolation
+!! Input:
+!!   xa, ya : known data points (arrays of size N)
+!!   x      : point to interpolate at
+!! Output:
+!!   polint : interpolated value at x
+function polint(x, xa, ya)
   implicit none
 
   double precision :: polint
