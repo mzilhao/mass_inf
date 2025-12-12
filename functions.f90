@@ -6,8 +6,10 @@ module physics_config_mod
     integer :: D = 4                            ! Spacetime dimension
     integer :: neq = 3                          ! Number of equations
     double precision :: lambda = 0.0d0          ! Cosmological constant
+    double precision :: A = 0.0d0               ! Scalar field amplitude
+    double precision :: Delta = 1.0d0           ! Scalar field width
     double precision :: q = 0.95d0              ! Electric charge
-    double precision :: q2, qq2, qq            ! Derived constants
+    double precision :: q2, qq2, qq             ! Derived constants
     double precision :: Pi = 3.1415926535897932384626433d0
   end type physics_config
 
@@ -18,7 +20,7 @@ module functions
   use simulation_config_mod
   implicit none
   private
-  public :: F, init_physics_config, init_cond, print_simulation_header
+  public :: F, init_physics_config, init_cond
   public :: compute_diagnostics, write_output_if_needed, write_output_header, write_output_separator
 
 contains
@@ -56,21 +58,6 @@ subroutine compute_diagnostics(h, dhdu, dhdv, dhduv, cfg, mass, drdv, ricci)
         )                                                                &
         + 4*exp(-2*h(3))*dhduv(3) + 4*(D-2)*dhduv(1)*exp(-2*h(3)) / h(1)
 end subroutine compute_diagnostics
-
-!> Print simulation header to output file
-subroutine print_simulation_header(id, physics_cfg, A)
-  integer, intent(in) :: id
-  type(physics_config), intent(in) :: physics_cfg
-  double precision, intent(in) :: A
-
-  write(id, '(a,i2)')    '# D         = ', physics_cfg%D
-  write(id, '(a,g10.4)') '# lambda    = ', physics_cfg%lambda
-  write(id, '(a,g10.4)') '# q         = ', sqrt(physics_cfg%q2)
-  write(id, '(a,g10.4)') '# A         = ', A
-  write(id, '(a,g10.4)') '# sigma_0   = ', -0.5d0 * log(2.0d0)
-  write(id, '(a,g10.4)') '# m0        = ', 1.0d0
-  write(id, '(a)') '#'
-end subroutine print_simulation_header
 
 !====================================================================================
 !> Right-hand side of the PDE system
@@ -113,12 +100,12 @@ end subroutine F
 !====================================================================================
 !> Initialize boundary conditions at u=u0 and v=v0
 !! Returns: h_u0 (IC along u0), h_v0 (IC along v0)
-subroutine init_cond(h_u0, h_v0, sim_cfg, physics_cfg)
+subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
   implicit none
 
   double precision, dimension(:,:), allocatable, intent(out) :: h_u0, h_v0
   type(simulation_config), intent(inout) :: sim_cfg
-  type(physics_config), intent(in) :: physics_cfg
+  type(physics_config), intent(in) :: cfg
 
   ! Local variables
   integer :: i, D
@@ -128,14 +115,16 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, physics_cfg)
   logical :: scalarfield
 
   ! Extract config values
-  D = physics_cfg%D
-  Pi = physics_cfg%Pi
-  lambda = physics_cfg%lambda
-  q2 = physics_cfg%q2
+  D = cfg%D
+  Pi = cfg%Pi
+  lambda = cfg%lambda
+  q2 = cfg%q2
+  A = cfg%A
+  Delta = cfg%Delta
 
   ! Allocate boundary condition arrays
-  allocate(h_u0(sim_cfg%Nv, physics_cfg%neq))
-  allocate(h_v0(sim_cfg%Nu_max, physics_cfg%neq))
+  allocate(h_u0(sim_cfg%Nv, cfg%neq))
+  allocate(h_v0(sim_cfg%Nu_max, cfg%neq))
   h_u0 = 0.0d0
   h_v0 = 0.0d0
 
@@ -146,9 +135,7 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, physics_cfg)
   ru0 = 0.25d0 * (2.0d0 / (r00**(D-3)) * (m0 - q2/(2.0d0*r00**(D-3))) &
        - 1.0d0 + lambda * r00 * r00 / 3.0d0)
 
-  ! Perturbation parameters
-  A = 0.0d0
-  Delta = 1.0d0
+  ! FIXME
   scalarfield = .true.
   v1 = sim_cfg%v0 + Delta
 
@@ -197,8 +184,17 @@ subroutine write_output_header(output_unit, cfg)
   integer, intent(in) :: output_unit
   type(physics_config), intent(in) :: cfg
 
-  call print_simulation_header(output_unit, cfg, 0.0d0)
-  write(output_unit,'(a)') '# | u | v | r | phi | sigma | mass | drdv | Ricci'
+  write(output_unit, '(a,i2)')    '# D         = ', cfg%D
+  write(output_unit, '(a,g10.4)') '# lambda    = ', cfg%lambda
+  write(output_unit, '(a,g10.4)') '# q         = ', sqrt(cfg%q2)
+  write(output_unit, '(a,g10.4)') '# A         = ', cfg%A
+  write(output_unit, '(a,g10.4)') '# Delta     = ', cfg%Delta
+  ! FIXME: hardcoded initial conditions info
+  write(output_unit, '(a,g10.4)') '# sigma_0   = ', -0.5d0 * log(2.0d0)
+  write(output_unit, '(a,g10.4)') '# m0        = ', 1.0d0
+  write(output_unit, '(a)') '#'
+
+  write(output_unit, '(a)') '# | u | v | r | phi | sigma | mass | drdv | Ricci'
 end subroutine write_output_header
 
 !====================================================================================

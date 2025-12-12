@@ -11,7 +11,7 @@ program mass_inflation
   type(physics_config)    :: cfg
   type(simulation_config) :: sim_cfg
   integer                 :: neq, output_unit
-  double precision        :: upos, v, reldiff_r = 0.0d0
+  double precision        :: u_cur, v, reldiff_r = 0.0d0
 
   double precision, allocatable, dimension(:,:) :: h_u0, h_v0
   integer,          allocatable, dimension(:)   :: plus, minus
@@ -52,8 +52,7 @@ program mass_inflation
   Nv = sim_cfg%Nv
   Nu_max = sim_cfg%Nu_max
 
-  call cpu_time(start_time_cpu)
-
+  ! Open file for output
   open(newunit=output_unit, file=filename, status='replace')
   call write_output_header(output_unit, cfg)
 
@@ -72,7 +71,7 @@ program mass_inflation
   plus = 0
   minus = 0
 
-  upos = u0
+  u_cur = u0
   do j = 1, Nu
     u(j) = u0 + (j - 1) * du
   end do
@@ -85,6 +84,7 @@ program mass_inflation
   next_idx = Nu + 1
   v = v0
 
+  call cpu_time(start_time_cpu)
 
   ! Start the main integration loop. i is the step in 'v'; j the step in 'u'.
   ! At each step we assume we are at the point (u,v).
@@ -101,7 +101,7 @@ program mass_inflation
     call print_status(i, v, v0, vf, start_time_cpu, h_v0, next_idx, sim_cfg%progress_stride, sim_cfg%progress_header_stride)
 
     ! Reset u position each time we advance in v
-    upos = u0
+    u_cur = u0
 
     v = v + dv
 
@@ -114,7 +114,7 @@ program mass_inflation
 
     ! Advance from u to u + du at v + dv
     j = plus(1)
-    do while (upos < uf)
+    do while (u_cur < uf)
       jm1 = minus(j)
 
       ! h_E holds the values that h_N had in the previous step: h(u, v + dv)
@@ -169,7 +169,7 @@ program mass_inflation
       call step(h_N, h_S, h_E, h_W, du, dv, cfg, N_PICARD_ITERATIONS)
 
       h_v1(j, :) = h_N(:)
-      upos = upos + du
+      u_cur = u_cur + du
 
       call write_output_if_needed(output_unit, u(j), v, h_N, h_S, h_E, h_W, du, dv, &
                                    u0, v0, sim_cfg, cfg, OUTPUT_TOLERANCE_U, OUTPUT_TOLERANCE_V)

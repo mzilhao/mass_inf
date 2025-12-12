@@ -65,7 +65,7 @@ contains
 
     ! Progress reporting cadence (stdout)
     sim_cfg%progress_stride = 100
-    sim_cfg%progress_header_stride = 10000
+    sim_cfg%progress_header_stride = 5000
 
     ! Initial condition scale
     sim_cfg%m0 = 1.0d0
