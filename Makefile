@@ -49,12 +49,12 @@ $(OBJDIR)/debug_%.o: %.f90 | $(OBJDIR)
 $(OBJDIR)/functions.o: $(OBJDIR)/simulation_config.o
 $(OBJDIR)/pde_stepper.o: $(OBJDIR)/functions.o
 $(OBJDIR)/evolve.o: $(OBJDIR)/pde_stepper.o $(OBJDIR)/functions.o
-$(OBJDIR)/mass_inf.o: $(OBJDIR)/functions.o $(OBJDIR)/evolve.o $(OBJDIR)/simulation_config.o $(OBJDIR)/polint.o $(OBJDIR)/progress_utils.o
+$(OBJDIR)/mass_inf.o: $(OBJDIR)/functions.o $(OBJDIR)/evolve.o $(OBJDIR)/simulation_config.o $(OBJDIR)/polint.o $(OBJDIR)/progress_utils.o $(OBJDIR)/utils.o
 
 $(OBJDIR)/debug_functions.o: $(OBJDIR)/debug_simulation_config.o
 $(OBJDIR)/debug_pde_stepper.o: $(OBJDIR)/debug_functions.o
 $(OBJDIR)/debug_evolve.o: $(OBJDIR)/debug_pde_stepper.o $(OBJDIR)/debug_functions.o
-$(OBJDIR)/debug_mass_inf.o: $(OBJDIR)/debug_functions.o $(OBJDIR)/debug_evolve.o $(OBJDIR)/debug_simulation_config.o $(OBJDIR)/debug_polint.o $(OBJDIR)/debug_progress_utils.o
+$(OBJDIR)/debug_mass_inf.o: $(OBJDIR)/debug_functions.o $(OBJDIR)/debug_evolve.o $(OBJDIR)/debug_simulation_config.o $(OBJDIR)/debug_polint.o $(OBJDIR)/debug_progress_utils.o $(OBJDIR)/debug_utils.o
 
 # Create directories
 $(BINDIR) $(OBJDIR):

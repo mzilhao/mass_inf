@@ -1,34 +1,10 @@
-module amr_helpers
-  implicit none
-  private
-  public :: relative_gradient
-
-contains
-
-  !> Compute relative gradient between two values
-  !! Used for AMR criterion based on the variation of the r variable.
-  !!
-  !! @param[in] val1
-  !! @param[in] val2
-  !! @return Relative gradient measure
-  pure function relative_gradient(val1, val2) result(grad)
-    double precision, intent(in) :: val1, val2
-    double precision :: grad
-    double precision, parameter :: EPSILON_GUARD = 1.0d-16
-
-    ! The factor of 2 normalizes the gradient relative to the average value.
-    grad = 2.0d0 * abs((val1 - val2) / (val1 + val2 + EPSILON_GUARD))
-  end function relative_gradient
-
-end module amr_helpers
-
 program mass_inflation
   use physics_config_mod
   use simulation_config_mod
   use functions
   use evolve_wrapper, only: step
   use polint_mod
-  use amr_helpers
+  use utils
   use progress_utils, only: report_progress, print_banner
   implicit none
 
@@ -36,7 +12,7 @@ program mass_inflation
   type(physics_config)    :: cfg
   type(simulation_config) :: sim_cfg
   integer                 :: neq, output_unit
-  double precision        :: upos, v, grad_r = 0.0d0
+  double precision        :: upos, v, reldiff_r = 0.0d0
 
   double precision, allocatable, dimension(:,:) :: h_u0, h_v0
   integer,          allocatable, dimension(:)   :: plus, minus
@@ -147,15 +123,15 @@ program mass_inflation
       h_S(:) = h_v0(jm1, :)  ! h(u, v)
       h_W(:) = h_v0(j, :)    ! h(u + du, v)
 
-      ! Adaptive Mesh Refinement (AMR) in the 'u' direction. If the gradient
-      ! of 'r' between points (u, v) and (u + du, v) exceeds the threshold,
+      ! Adaptive Mesh Refinement (AMR) in the 'u' direction. If the relative
+      ! variation in 'r' between points (u, v) and (u + du, v) exceeds the threshold,
       ! we add a new point halfway between them by interpolating all
       ! field values using polynomial interpolation.
       if (sim_cfg%AMR) then
-        grad_r = relative_gradient(h_W(1), h_S(1))
+        reldiff_r = relative_difference(h_W(1), h_S(1))
 
         ! We keep adding points in u until the gradient in r is small enough
-        do while (grad_r > sim_cfg%gradmax .and. j >= 4)
+        do while (reldiff_r > sim_cfg%gradmax .and. j >= 4)
           jm1 = minus(j)
           jm2 = minus(jm1)
           jm3 = minus(jm2)
@@ -184,7 +160,7 @@ program mass_inflation
           j               = next_idx
           next_idx        = next_idx + 1
 
-          grad_r = relative_gradient(h_W(1), h_S(1))
+          reldiff_r = relative_difference(h_W(1), h_S(1))
         end do
       end if ! end AMR
 
@@ -213,4 +189,5 @@ program mass_inflation
   close(output_unit)
 
   deallocate(h_u0, h_v0, u, minus, plus, h_v1)
+
 end program mass_inflation
