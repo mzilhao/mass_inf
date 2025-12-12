@@ -1,7 +1,7 @@
 module utils
   implicit none
   private
-  public :: relative_difference, print_status, print_banner
+  public :: relative_difference, print_status, startup
 
 contains
 
@@ -66,9 +66,22 @@ subroutine print_status(iter, v_cur, v_initial, v_final, start_cpu, h_v0, next_i
 end subroutine print_status
 
 
-!> Print ASCII banner to stdout at startup
-subroutine print_banner()
-  write(*,'(a)') '-----------------------------------------------------------------------'
+!> Print ASCII banner and general info to stdout at startup
+subroutine startup()
+  character(len=8) :: date_str
+  character(len=10) :: time_str
+  character(len=256) :: username, hostname
+  integer :: stat
+
+  ! Get runtime info
+  call date_and_time(DATE=date_str, TIME=time_str)
+  call get_environment_variable('USER', username, status=stat)
+  if (stat /= 0) username = 'unknown'
+  call get_environment_variable('HOSTNAME', hostname, status=stat)
+  if (stat /= 0) hostname = 'unknown'
+
+
+  write(*,'(a)') '======================================================================='
   write(*,'(a)') ''
   write(*,'(a)') '                    x\                /x'
   write(*,'(a)') '                    x \              / x'
@@ -107,8 +120,16 @@ subroutine print_banner()
   write(*,'(a)') '                                     \  /'
   write(*,'(a)') '                                      \/'
   write(*,'(a)') ''
-  write(*,'(a)') '-----------------------------------------------------------------------'
+  write(*,'(a)') '======================================================================='
   write(*,'(a)') ''
-end subroutine print_banner
+
+  ! Format and print
+  write(*,'(a,a4,a,a2,a,a2)') 'Run date: ', date_str(1:4), '-', date_str(5:6), '-', date_str(7:8)
+  write(*,'(a,a2,a,a2,a,a2)') 'Run time: ', time_str(1:2), ':', time_str(3:4), ':', time_str(5:6)
+  write(*,'(a,a)') 'User:     ', trim(username)
+  write(*,'(a,a)') 'Host:     ', trim(hostname)
+  write(*,'(a)') ''
+
+end subroutine startup
 
 end module utils

@@ -39,7 +39,7 @@ program mass_inflation
   call init_simulation_config(sim_cfg)
   neq = cfg%neq
 
-  call print_banner()
+  call startup()
 
   ! Create local aliases for readability
   du = sim_cfg%du
