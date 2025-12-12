@@ -243,9 +243,16 @@ end subroutine write_output_if_needed
 
 !====================================================================================
 ! output separator (blank line) to separate v-blocks.
-subroutine write_output_separator(output_unit)
+subroutine write_output_separator(output_unit, v_val, v0, dv, resv, tol_v)
   integer, intent(in) :: output_unit
-  write(output_unit,'(a)') ''
+  double precision, intent(in) :: v_val, v0, dv, tol_v
+  integer, intent(in) :: resv
+  double precision :: tempv
+
+  tempv = abs(v_val - v0) * resv
+  if (tempv - int(tempv + dv*0.1d0) < tol_v) then
+    write(output_unit,'(a)') ''
+  end if
 end subroutine write_output_separator
 
 !====================================================================================

@@ -92,13 +92,9 @@ program mass_inflation
     ! Print progress to stdout (cadence controlled by simulation config)
     call print_status(i, v, v0, vf, start_time_cpu, h_v0, next_idx, sim_cfg%progress_stride, sim_cfg%progress_header_stride)
 
-    ! FIXME
     ! Output separator line, for easier parsing of data files
     ! TODO: is this a good thing to do?
-    tempv = abs(v - v0) * sim_cfg%resv
-    if (tempv - int(tempv + dv*0.1d0) < OUTPUT_TOLERANCE_V) then
-      call write_output_separator(output_unit)
-    end if
+    call write_output_separator(output_unit, v, v0, dv, sim_cfg%resv, OUTPUT_TOLERANCE_V)
 
     ! Reset u position each time we advance in v
     u_cur = u0
