@@ -84,7 +84,7 @@ program mass_inflation
   end do
 
   next_idx = Nu + 1
-  v = sim_cfg%v0
+  v = v0
 
 
   ! Start the main integration loop. i is the step in 'v'; j the step in 'u'.
@@ -98,8 +98,8 @@ program mass_inflation
       call write_output_separator(output_unit)
     end if
 
-    ! Progress output to stdout (cadence controlled by simulation config)
-    call print_status(i, v, vf, start_time_cpu, h_v0, next_idx, sim_cfg%progress_stride, sim_cfg%progress_header_stride)
+    ! Print progress to stdout (cadence controlled by simulation config)
+    call print_status(i, v, v0, vf, start_time_cpu, h_v0, next_idx, sim_cfg%progress_stride, sim_cfg%progress_header_stride)
 
     ! Reset u position each time we advance in v
     upos = u0

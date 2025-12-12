@@ -22,9 +22,9 @@ end function relative_difference
 
 
 !> Report progress to stdout: iteration, v, elapsed time, rate, min/max(r)
-subroutine print_status(iter, v_cur, v_final, start_cpu, h_v0, next_idx, progress_stride, header_stride)
+subroutine print_status(iter, v_cur, v_initial, v_final, start_cpu, h_v0, next_idx, progress_stride, header_stride)
   integer, intent(in) :: iter, next_idx
-  double precision, intent(in) :: v_cur, v_final, start_cpu
+  double precision, intent(in) :: v_cur, v_initial, v_final, start_cpu
   double precision, dimension(:,:), intent(in) :: h_v0
   integer, intent(in) :: progress_stride, header_stride
 
@@ -43,19 +43,21 @@ subroutine print_status(iter, v_cur, v_final, start_cpu, h_v0, next_idx, progres
 
   if (should_header) then
     write(*,'(a)') '-----------------------------------------------------------------------'
-    write(*,'(a)') 'Iteration       v / vf     | rate (iters/s) |               r          '
+    write(*,'(a)') 'Iteration       v / vf     |         Δv/min |               r          '
     write(*,'(a)') '                           |                |     minimum       maximum'
     write(*,'(a)') '-----------------------------------------------------------------------'
   end if
 
   call cpu_time(elapsed)
-  elapsed = max(elapsed - start_cpu, 0.0d0)
+  elapsed = (elapsed - start_cpu)/60.0d0  ! convert to minutes
   if (elapsed > 1.0d-9) then
-    rate = dble(iter) / elapsed
+    rate = (v_cur - v_initial) / elapsed
   else
     rate = 0.0d0
   end if
 
+  ! this assumes that the r variable is stored in h_v0(:,1).
+  ! needs to be adapted adapt if that ever changes.
   min_r = minval(h_v0(1:next_idx-1, 1))
   max_r = maxval(h_v0(1:next_idx-1, 1))
 
