@@ -5,7 +5,7 @@ program mass_inflation
   use evolve_wrapper, only: step
   use polint_mod
   use utils
-  use progress_utils, only: report_progress, print_banner
+  use progress_utils, only: print_banner
   implicit none
 
   ! Physics and simulation configuration
@@ -99,7 +99,7 @@ program mass_inflation
     end if
 
     ! Progress output to stdout (cadence controlled by simulation config)
-    call report_progress(i, v, vf, start_time_cpu, h_v0, next_idx, sim_cfg%progress_stride, sim_cfg%progress_header_stride)
+    call print_status(i, v, vf, start_time_cpu, h_v0, next_idx, sim_cfg%progress_stride, sim_cfg%progress_header_stride)
 
     ! Reset u position each time we advance in v
     upos = u0
