@@ -5,7 +5,6 @@ program mass_inflation
   use evolve_wrapper, only: step
   use polint_mod
   use utils
-  use progress_utils, only: print_banner
   implicit none
 
   ! Physics and simulation configuration
