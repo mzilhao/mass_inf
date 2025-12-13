@@ -21,7 +21,7 @@ module functions
   implicit none
   private
   public :: F, init_physics_config, init_cond
-  public :: compute_diagnostics, write_output, write_output_header, write_output_separator
+  public :: compute_diagnostics, write_output, write_output_header
 
 contains
 
@@ -180,10 +180,12 @@ end subroutine init_cond
 
 !====================================================================================
 !> Initialize output file with physics model header
-subroutine write_output_header(output_unit, cfg)
+subroutine write_output_header(output_unit, cfg, sim_cfg)
   integer, intent(in) :: output_unit
   type(physics_config), intent(in) :: cfg
+  type(simulation_config), intent(in) :: sim_cfg
 
+  ! Physics parameters
   write(output_unit, '(a,i2)')    '# D         = ', cfg%D
   write(output_unit, '(a,g10.4)') '# lambda    = ', cfg%lambda
   write(output_unit, '(a,g10.4)') '# q         = ', sqrt(cfg%q2)
@@ -192,17 +194,28 @@ subroutine write_output_header(output_unit, cfg)
   ! FIXME: hardcoded initial conditions info
   write(output_unit, '(a,g10.4)') '# sigma_0   = ', -0.5d0 * log(2.0d0)
   write(output_unit, '(a,g10.4)') '# m0        = ', 1.0d0
+
+  ! Grid parameters
+  write(output_unit, '(a)') '#'
+  write(output_unit, '(a,g14.6)') '# u_min     = ', sim_cfg%u_min
+  write(output_unit, '(a,g14.6)') '# u_max     = ', sim_cfg%u_max
+  write(output_unit, '(a,g14.6)') '# v_min     = ', sim_cfg%v_min
+  write(output_unit, '(a,g14.6)') '# v_max     = ', sim_cfg%v_max
+  write(output_unit, '(a,g14.6)') '# du        = ', sim_cfg%du
+  write(output_unit, '(a,g14.6)') '# dv        = ', sim_cfg%dv
+  write(output_unit, '(a,g14.6)') '# output_du = ', sim_cfg%output_du
+  write(output_unit, '(a,g14.6)') '# output_dv = ', sim_cfg%output_dv
   write(output_unit, '(a)') '#'
 
-  write(output_unit, '(a)') '# | u | v | r | phi | sigma | mass | drdv | Ricci'
+  ! Column headers
+  write(output_unit, '(a)') '# Columns: u, r, phi, sigma, mass, drdv, Ricci'
 end subroutine write_output_header
 
 !====================================================================================
 !> Compute diagnostics and write them if output cadence is met
 !!
-!! This routine handles both diagnostic computation and output filtering.
-!! It encapsulates which quantities are physically meaningful to output,
-!! making it easy to swap for a different physics model.
+!! Writes columnar ASCII output: u, r, phi, sigma, mass, drdv, Ricci
+!! v-slices are marked with comment lines: # v = X.XXXXX
 subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
   integer, intent(in)                 :: output_unit
   double precision, intent(in)        :: u_val, v_val, du, dv
@@ -216,7 +229,9 @@ subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, s
   double precision, dimension(:), allocatable :: h_P, dhdu_P, dhdv_P, dhduv_P
   double precision :: u_P, v_P, mass, drdv, ricci
 
-  ! Check output condition FIRST, before doing any work.
+  double precision, save :: last_v_marked_val = -1.0d99
+
+  ! Check output condition first, before doing any work
   ! Output condition: write when current (u,v) aligns with sampling spacings.
   ! We check if (u - u_min)/output_du and (v - v_min)/output_dv are near integers.
   ! This is robust to floating-point drift and local AMR changes.
@@ -236,13 +251,19 @@ subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, s
 
   if (.not. (u_ok .and. v_ok)) return
 
-
-  neq_local = size(h_N)
-  allocate(h_P(neq_local), dhdu_P(neq_local), dhdv_P(neq_local), dhduv_P(neq_local))
-
   ! The diagnostics are computed at the midpoint P = (u+du/2, v+dv/2)
   u_P = u_val + 0.5d0 * du
   v_P = v_val + 0.5d0 * dv
+
+  ! Write a new v-slice block if v_val is more than one half output_dv away from last marked
+  if (abs(v_val - last_v_marked_val) > 0.5d0 * sim_cfg%output_dv) then
+    write(output_unit, '(a)')
+    write(output_unit, '(a,f10.6)') '# v = ', v_P
+    last_v_marked_val = v_val
+  end if
+
+  neq_local = size(h_N)
+  allocate(h_P(neq_local), dhdu_P(neq_local), dhdv_P(neq_local), dhduv_P(neq_local))
 
   h_P     = 0.25d0 * (h_N + h_S + h_E - h_W)
   dhdu_P  = (h_W - h_S + h_N - h_E) * 0.5d0 / du
@@ -251,27 +272,12 @@ subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, s
   call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq_local, cfg)
   call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
 
-  write(output_unit,*) (/ u_P, v_P, h_P, (/ mass, drdv, ricci /) /)
+  ! Write columnar output: u, r, phi, sigma, mass, drdv, Ricci
+  write(output_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3), mass, drdv, ricci
 
   deallocate(h_P, dhdu_P, dhdv_P, dhduv_P)
 end subroutine write_output
 
-!====================================================================================
-! output separator (blank line) to separate v-blocks.
-subroutine write_output_separator(output_unit, v_val, sim_cfg)
-  integer, intent(in) :: output_unit
-  double precision, intent(in) :: v_val
-  type(simulation_config), intent(in) :: sim_cfg
-
-  double precision :: tempv
-
-  if (sim_cfg%output_dv > 0.0d0) then
-    tempv = abs((v_val - sim_cfg%v_min) / sim_cfg%output_dv)
-    if (abs(tempv - dnint(tempv)) < 1.0d-6) then
-      write(output_unit,'(a)') ''
-    end if
-  end if
-end subroutine write_output_separator
 
 !====================================================================================
 end module functions

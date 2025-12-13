@@ -50,7 +50,7 @@ program mass_inflation
 
   ! Open file for output
   open(newunit=output_unit, file=filename, status='replace')
-  call write_output_header(output_unit, cfg)
+  call write_output_header(output_unit, cfg, sim_cfg)
 
   ! Initialize boundary conditions (returns allocated h_u0, h_v0)
   call init_cond(h_u0, h_v0, sim_cfg, cfg)
@@ -88,10 +88,6 @@ program mass_inflation
     ! Print progress to stdout (cadence controlled by simulation config)
     call print_status(i, v_cur, v_min, v_max, start_time_cpu, h_v0, next_idx, &
                       sim_cfg%progress_stride, sim_cfg%progress_header_stride)
-
-    ! Output separator line, for easier parsing of data files
-    ! TODO: is this a good thing to do?
-    call write_output_separator(output_unit, v_cur, sim_cfg)
 
     ! Reset u position each time we advance in v
     u_cur = u_min
