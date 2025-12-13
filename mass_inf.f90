@@ -30,9 +30,21 @@ program mass_inflation
   integer, parameter :: N_PICARD_ITERATIONS = 4
   integer, parameter :: N_INTERP_POINTS = 5
   double precision, dimension(N_INTERP_POINTS) :: interp_x, interp_y
+  character(len=256) :: param_file = 'params.nml'
+  logical :: param_file_exists
 
-  call init_physics_config(cfg)
-  call init_simulation_config(sim_cfg)
+  ! Check if parameter file exists and read config
+  inquire(file=param_file, exist=param_file_exists)
+  if (param_file_exists) then
+    call read_physics_config_from_file(cfg, param_file)
+    call read_simulation_config_from_file(sim_cfg, param_file)
+  else
+    write(*, '(a,a,a)') 'Warning: parameter file "', trim(param_file), '" not found. Using defaults.'
+    cfg = physics_config()
+    call init_physics_config(cfg)
+    sim_cfg = simulation_config()
+    call compute_grid_dimensions(sim_cfg)
+  end if
   neq = cfg%neq
 
   call startup()

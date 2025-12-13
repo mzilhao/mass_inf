@@ -9,7 +9,8 @@ module physics_config_mod
     double precision :: A = 0.0d0               ! Scalar field amplitude
     double precision :: Delta = 1.0d0           ! Scalar field width
     double precision :: q = 0.95d0              ! Electric charge
-    double precision :: q2, qq2, qq             ! Derived constants
+
+    double precision :: q2 = 0.0d0, qq2 = 0.0d0, qq = 0.0d0  ! Derived constants, dummy values
     double precision :: Pi = 3.1415926535897932384626433d0
   end type physics_config
 
@@ -20,7 +21,7 @@ module functions
   use simulation_config_mod
   implicit none
   private
-  public :: F, init_physics_config, init_cond
+  public :: F, init_physics_config, read_physics_config_from_file, init_cond
   public :: compute_diagnostics, write_output, write_output_header
 
 contains
@@ -32,6 +33,52 @@ subroutine init_physics_config(cfg)
   cfg%qq2 = 0.5d0 * cfg%q2 * (cfg%D - 3) * (cfg%D - 2)
   cfg%qq = sqrt(cfg%qq2)
 end subroutine init_physics_config
+
+!> Read physics configuration from a namelist file
+!! Reads &physics namelist and computes derived constants.
+!! Reads from an existing namelist file.
+subroutine read_physics_config_from_file(cfg, filename)
+  type(physics_config), intent(out) :: cfg
+  character(len=*), intent(in)      :: filename
+
+  ! Local variables for namelist reading
+  integer :: D
+  double precision :: lambda, A, Delta, q
+  namelist /physics/ D, lambda, A, Delta, q
+
+  integer :: unit, ierr
+
+  ! Initialize with type defaults
+  cfg = physics_config()
+  D      = cfg%D
+  lambda = cfg%lambda
+  A      = cfg%A
+  Delta  = cfg%Delta
+  q      = cfg%q
+
+  ! Read namelist
+  open(newunit=unit, file=filename, status='old', action='read', iostat=ierr)
+  if (ierr /= 0) then
+    write(*, '(a,a,a)') 'Error: could not open parameter file "', trim(filename), '"'
+  else
+    read(unit, nml=physics, iostat=ierr)
+    if (ierr /= 0) then
+      write(*, '(a,a,a)') 'Error: could not read &physics namelist from "', trim(filename), '"'
+    end if
+    close(unit)
+  end if
+
+  ! Update cfg with (possibly modified) namelist values
+  cfg%D      = D
+  cfg%lambda = lambda
+  cfg%A      = A
+  cfg%Delta  = Delta
+  cfg%q      = q
+
+  ! Compute derived constants
+  call init_physics_config(cfg)
+
+end subroutine read_physics_config_from_file
 
 !> Compute model-dependent diagnostics (mass, drdv, Ricci)
 subroutine compute_diagnostics(h, dhdu, dhdv, dhduv, cfg, mass, drdv, ricci)
