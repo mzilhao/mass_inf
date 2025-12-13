@@ -14,7 +14,6 @@ make test-save-reference
 
 - `reference_data.dat` - Golden reference data (120,000 rows × 8 columns)
 - `compare_numerical.py` - Python tool for numerical comparison with tolerances
-- `compare_numerical.awk` - AWK fallback (if numpy unavailable)
 - `run_tests.sh` - Test orchestration script
 
 ## How It Works
