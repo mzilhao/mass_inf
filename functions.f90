@@ -21,7 +21,7 @@ module functions
   implicit none
   private
   public :: F, init_physics_config, init_cond
-  public :: compute_diagnostics, write_output_if_needed, write_output_header, write_output_separator
+  public :: compute_diagnostics, write_output, write_output_header, write_output_separator
 
 contains
 
@@ -203,27 +203,38 @@ end subroutine write_output_header
 !! This routine handles both diagnostic computation and output filtering.
 !! It encapsulates which quantities are physically meaningful to output,
 !! making it easy to swap for a different physics model.
-subroutine write_output_if_needed(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, &
-                                   u0, v0, sim_cfg, cfg, OUTPUT_TOL_U, OUTPUT_TOL_V)
+subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
   integer, intent(in)                 :: output_unit
-  double precision, intent(in)        :: u_val, v_val, du, dv, u0, v0
+  double precision, intent(in)        :: u_val, v_val, du, dv
   double precision, dimension(:), intent(in) :: h_N, h_S, h_E, h_W
   type(simulation_config), intent(in) :: sim_cfg
   type(physics_config),    intent(in) :: cfg
-  double precision, intent(in)        :: OUTPUT_TOL_U, OUTPUT_TOL_V
 
   integer :: neq_local
-  double precision :: tempu, tempv
+  double precision :: temp
+  logical :: u_ok, v_ok
   double precision, dimension(:), allocatable :: h_P, dhdu_P, dhdv_P, dhduv_P
   double precision :: mass, drdv, ricci
 
-  ! Check output condition FIRST before doing any work
-  tempv = abs(v_val - v0) * sim_cfg%resv
-  tempu = abs(u_val - u0) * sim_cfg%resu
-  if (.not. (abs(tempu - int(tempu + du*0.5d0)) < OUTPUT_TOL_U .and. &
-             abs(tempv - int(tempv + dv*0.5d0)) < OUTPUT_TOL_V)) then
-    return
+  ! Check output condition FIRST, before doing any work.
+  ! Output condition: write when current (u,v) aligns with sampling spacings.
+  ! We check if (u - u0)/output_du and (v - v0)/output_dv are near integers.
+  ! This is robust to floating-point drift and local AMR changes.
+  if (sim_cfg%output_du > 0.0d0) then
+    temp = abs((u_val - sim_cfg%u0) / sim_cfg%output_du)
+    u_ok = abs(temp - dnint(temp)) < 1.0d-7
+  else
+    u_ok = .true.
   end if
+
+  if (sim_cfg%output_dv > 0.0d0) then
+    temp = abs((v_val - sim_cfg%v0) / sim_cfg%output_dv)
+    v_ok = abs(temp - dnint(temp)) < 1.0d-6
+  else
+    v_ok = .true.
+  end if
+
+  if (.not. (u_ok .and. v_ok)) return
 
 
   neq_local = size(h_N)
@@ -239,19 +250,22 @@ subroutine write_output_if_needed(output_unit, u_val, v_val, h_N, h_S, h_E, h_W,
   write(output_unit,*) (/ u_val, v_val, h_N, (/ mass, drdv, ricci /) /)
 
   deallocate(h_P, dhdu_P, dhdv_P, dhduv_P)
-end subroutine write_output_if_needed
+end subroutine write_output
 
 !====================================================================================
 ! output separator (blank line) to separate v-blocks.
-subroutine write_output_separator(output_unit, v_val, v0, dv, resv, tol_v)
+subroutine write_output_separator(output_unit, v_val, sim_cfg)
   integer, intent(in) :: output_unit
-  double precision, intent(in) :: v_val, v0, dv, tol_v
-  integer, intent(in) :: resv
+  double precision, intent(in) :: v_val
+  type(simulation_config), intent(in) :: sim_cfg
+
   double precision :: tempv
 
-  tempv = abs(v_val - v0) * resv
-  if (tempv - int(tempv + dv*0.1d0) < tol_v) then
-    write(output_unit,'(a)') ''
+  if (sim_cfg%output_dv > 0.0d0) then
+    tempv = abs((v_val - sim_cfg%v0) / sim_cfg%output_dv)
+    if (abs(tempv - dnint(tempv)) < 1.0d-6) then
+      write(output_unit,'(a)') ''
+    end if
   end if
 end subroutine write_output_separator
 

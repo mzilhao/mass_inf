@@ -31,8 +31,6 @@ program mass_inflation
   ! Named constants for clarity
   integer, parameter :: N_PICARD_ITERATIONS = 4
   integer, parameter :: N_INTERP_POINTS = 5
-  double precision, parameter :: OUTPUT_TOLERANCE_V = 1.0d-6
-  double precision, parameter :: OUTPUT_TOLERANCE_U = 1.0d-7
   double precision, dimension(N_INTERP_POINTS) :: interp_x, interp_y
 
   call init_physics_config(cfg)
@@ -94,7 +92,7 @@ program mass_inflation
 
     ! Output separator line, for easier parsing of data files
     ! TODO: is this a good thing to do?
-    call write_output_separator(output_unit, v, v0, dv, sim_cfg%resv, OUTPUT_TOLERANCE_V)
+    call write_output_separator(output_unit, v, sim_cfg)
 
     ! Reset u position each time we advance in v
     u_cur = u0
@@ -167,8 +165,7 @@ program mass_inflation
       h_v1(j, :) = h_N(:)
       u_cur = u_cur + du
 
-      call write_output_if_needed(output_unit, u(j), v, h_N, h_S, h_E, h_W, du, dv, &
-                                   u0, v0, sim_cfg, cfg, OUTPUT_TOLERANCE_U, OUTPUT_TOLERANCE_V)
+      call write_output(output_unit, u(j), v, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
 
       j = plus(j)
 

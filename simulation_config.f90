@@ -21,19 +21,21 @@ module simulation_config_mod
     logical :: AMR                              ! Enable AMR
     double precision :: reldiff_max             ! Thresholds for refinement
 
-    ! Output resolution (sampling rate for printed results)
-    integer :: resu, resv
+    ! Output sampling spacing (absolute values in domain units)
+    double precision :: output_du               ! Write every this Δu
+    double precision :: output_dv               ! Write every this Δv
 
     ! Progress reporting cadence (stdout)
     integer :: progress_stride
     integer :: progress_header_stride
 
+    ! FIXME: move to physics config?
     ! Initial conditions
     double precision :: m0                      ! Initial mass parameter
 
     ! Derived values (computed)
     integer :: Nu, Nv                           ! Number of grid points
-    integer :: Nu_max                           ! Array allocation size
+    integer :: Nu_max                           ! Maximum u-arrays allocation size
   end type simulation_config
 
 contains
@@ -58,9 +60,9 @@ subroutine init_simulation_config(sim_cfg)
   sim_cfg%AMR = .true.
   sim_cfg%reldiff_max = 0.0001d0
 
-  ! Output resolution (print every Nth point)
-  sim_cfg%resu = 20
-  sim_cfg%resv = 20
+  ! Output sampling spacings
+  sim_cfg%output_du = 0.05d0
+  sim_cfg%output_dv = 0.05d0
 
   ! Progress reporting cadence (stdout)
   sim_cfg%progress_stride = 100
