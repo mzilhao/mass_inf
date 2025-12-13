@@ -19,11 +19,9 @@ program mass_inflation
   double precision, allocatable, dimension(:,:) :: h_v1
   double precision, allocatable, dimension(:)   :: h_S, h_E, h_W, h_N
 
-  double precision :: mass, drdv, ricci
   double precision :: du, dv, u_min, v_min, u_max, v_max
   double precision :: start_time_cpu
   integer          :: Nv, Nu, Nu_max
-  double precision :: tempu, tempv
 
   integer :: i, j, k, jm1, jm2, jm3, jp1, next_idx
   character(len=20), parameter :: filename = 'data.dat'
