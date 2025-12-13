@@ -95,16 +95,13 @@ program mass_inflation
     ! Reset u position each time we advance in v
     u_cur = u_min
 
-    v = v + dv
-
     ! h_N <- h(u, v + dv)
     h_N(:) = h_u0(i + 1, :)
 
     ! h_v1 will store all values at points (u, v + dv)
     h_v1(1, :) = h_N(:)
 
-
-    ! Advance from u to u + du at v + dv
+    ! Advance from u to u + du
     j = plus(1)
     do while (u_cur < u_max)
       jm1 = minus(j)
@@ -159,14 +156,12 @@ program mass_inflation
 
       ! step returns h_N = h(u + du, v + dv)
       call step(h_N, h_S, h_E, h_W, du, dv, cfg, N_PICARD_ITERATIONS)
-
       h_v1(j, :) = h_N(:)
-      u_cur = u_cur + du
 
-      call write_output(output_unit, u(j), v, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
+      call write_output(output_unit, u_cur, v, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
 
       j = plus(j)
-
+      u_cur = u_cur + du
     end do ! do while in the u direction
 
     ! Copy active grid points from h_v1 back to h_v0 for the next v-step.
@@ -174,6 +169,8 @@ program mass_inflation
     ! unnecessary copying of unused array memory.
     h_v0(1:next_idx, :) = h_v1(1:next_idx, :)
 
+    ! Advance in v
+    v = v + dv
   end do
 
   close(output_unit)
