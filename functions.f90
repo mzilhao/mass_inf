@@ -98,8 +98,8 @@ subroutine F(dhduv, h, dhdu, dhdv, neq, cfg)
 end subroutine F
 
 !====================================================================================
-!> Initialize boundary conditions at u=u0 and v=v0
-!! Returns: h_u0 (IC along u0), h_v0 (IC along v0)
+!> Initialize boundary conditions at u=u_min and v=v_min
+!! Returns: h_u0 (IC along u_min), h_v0 (IC along v_min)
 subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
   implicit none
 
@@ -129,7 +129,7 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
   h_v0 = 0.0d0
 
   ! Initial condition parameters
-  r00 = sim_cfg%v0
+  r00 = sim_cfg%v_min
   sigma_0 = -0.5d0 * log(2.0d0)
   m0 = sim_cfg%m0
   ru0 = 0.25d0 * (2.0d0 / (r00**(D-3)) * (m0 - q2/(2.0d0*r00**(D-3))) &
@@ -137,30 +137,30 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
 
   ! FIXME
   scalarfield = .true.
-  v1 = sim_cfg%v0 + Delta
+  v1 = sim_cfg%v_min + Delta
 
-  ! Boundary conditions at u = u0
+  ! Boundary conditions at u = u_min
   do i = 1, sim_cfg%Nv
-    v = sim_cfg%v0 + (i-1) * sim_cfg%dv
-    h_u0(i, 1) = v  ! r(u0,v)
+    v = sim_cfg%v_min + (i-1) * sim_cfg%dv
+    h_u0(i, 1) = v  ! r(u_min,v)
 
     if (scalarfield) then
-      if (v <= sim_cfg%v0 + Delta) then
+      if (v <= sim_cfg%v_min + Delta) then
         ! Perturbation phase
-        h_u0(i, 2) = A / (4*Pi) * (2*Pi*(v - sim_cfg%v0) - Delta * sin(2.0d0*Pi*(v - sim_cfg%v0)/Delta))
+        h_u0(i, 2) = A / (4*Pi) * (2*Pi*(v - sim_cfg%v_min) - Delta * sin(2.0d0*Pi*(v - sim_cfg%v_min)/Delta))
         h_u0(i, 3) = sigma_0 + 2.0d0/(D-2.0d0) * A*A/(256*Pi*Pi) &
-             * (15*sim_cfg%v0**2 - 24*Pi*Pi*sim_cfg%v0**2 - 30*sim_cfg%v0*v1 &
+             * (15*sim_cfg%v_min**2 - 24*Pi*Pi*sim_cfg%v_min**2 - 30*sim_cfg%v_min*v1 &
              + 15*v1**2 + 24*Pi*Pi*v**2 &
-             - 16*Delta**2*cos(2*Pi*(sim_cfg%v0-v)/Delta) &
-             + Delta**2*cos(4*Pi*(sim_cfg%v0-v)/Delta) &
-             - 32*Pi*sim_cfg%v0*v*sin(2*Pi*(sim_cfg%v0-v)/Delta) &
-             + 32*Pi*v1*v*sin(2*Pi*(sim_cfg%v0-v)/Delta) &
-             + 4*Pi*sim_cfg%v0*v*sin(4*Pi*(sim_cfg%v0-v)/Delta) &
-             - 4*Pi*v1*v*sin(4*Pi*(sim_cfg%v0-v)/Delta))
+             - 16*Delta**2*cos(2*Pi*(sim_cfg%v_min-v)/Delta) &
+             + Delta**2*cos(4*Pi*(sim_cfg%v_min-v)/Delta) &
+             - 32*Pi*sim_cfg%v_min*v*sin(2*Pi*(sim_cfg%v_min-v)/Delta) &
+             + 32*Pi*v1*v*sin(2*Pi*(sim_cfg%v_min-v)/Delta) &
+             + 4*Pi*sim_cfg%v_min*v*sin(4*Pi*(sim_cfg%v_min-v)/Delta) &
+             - 4*Pi*v1*v*sin(4*Pi*(sim_cfg%v_min-v)/Delta))
       else
         ! No perturbation phase
         h_u0(i, 2) = 0.5d0 * A * Delta
-        h_u0(i, 3) = sigma_0 + 2.0d0/(D-2.0d0) * 3*A*A*Delta*(sim_cfg%v0+v1)/32.0d0
+        h_u0(i, 3) = sigma_0 + 2.0d0/(D-2.0d0) * 3*A*A*Delta*(sim_cfg%v_min+v1)/32.0d0
       end if
     else
       ! No scalar field
@@ -169,12 +169,12 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
     end if
   end do
 
-  ! Boundary conditions at v = v0
+  ! Boundary conditions at v = v_min
   do i = 1, sim_cfg%Nu
-    u = sim_cfg%u0 + (i-1) * sim_cfg%du
-    h_v0(i, 1) = r00 + u * ru0  ! r(u,v0)
-    h_v0(i, 2) = 0.0d0          ! phi(u,v0)
-    h_v0(i, 3) = sigma_0        ! sigma(u,v0)
+    u = sim_cfg%u_min + (i-1) * sim_cfg%du
+    h_v0(i, 1) = r00 + u * ru0  ! r(u,v_min)
+    h_v0(i, 2) = 0.0d0          ! phi(u,v_min)
+    h_v0(i, 3) = sigma_0        ! sigma(u,v_min)
   end do
 end subroutine init_cond
 
@@ -218,17 +218,17 @@ subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, s
 
   ! Check output condition FIRST, before doing any work.
   ! Output condition: write when current (u,v) aligns with sampling spacings.
-  ! We check if (u - u0)/output_du and (v - v0)/output_dv are near integers.
+  ! We check if (u - u_min)/output_du and (v - v_min)/output_dv are near integers.
   ! This is robust to floating-point drift and local AMR changes.
   if (sim_cfg%output_du > 0.0d0) then
-    temp = abs((u_val - sim_cfg%u0) / sim_cfg%output_du)
+    temp = abs((u_val - sim_cfg%u_min) / sim_cfg%output_du)
     u_ok = abs(temp - dnint(temp)) < 1.0d-7
   else
     u_ok = .true.
   end if
 
   if (sim_cfg%output_dv > 0.0d0) then
-    temp = abs((v_val - sim_cfg%v0) / sim_cfg%output_dv)
+    temp = abs((v_val - sim_cfg%v_min) / sim_cfg%output_dv)
     v_ok = abs(temp - dnint(temp)) < 1.0d-6
   else
     v_ok = .true.
@@ -262,7 +262,7 @@ subroutine write_output_separator(output_unit, v_val, sim_cfg)
   double precision :: tempv
 
   if (sim_cfg%output_dv > 0.0d0) then
-    tempv = abs((v_val - sim_cfg%v0) / sim_cfg%output_dv)
+    tempv = abs((v_val - sim_cfg%v_min) / sim_cfg%output_dv)
     if (abs(tempv - dnint(tempv)) < 1.0d-6) then
       write(output_unit,'(a)') ''
     end if

@@ -11,8 +11,8 @@ module simulation_config_mod
   !! Stores all grid, integration, and AMR parameters
   type :: simulation_config
     ! Integration domain bounds
-    double precision :: u0, v0                  ! Domain start
-    double precision :: uf, vf                  ! Domain end
+    double precision :: u_min, v_min            ! Domain start
+    double precision :: u_max, v_max            ! Domain end
 
     ! Integration step sizes
     double precision :: du, dv                  ! Step sizes in u, v directions
@@ -47,10 +47,10 @@ subroutine init_simulation_config(sim_cfg)
   type(simulation_config), intent(out) :: sim_cfg
 
   ! Integration domain
-  sim_cfg%u0 = 0.0d0
-  sim_cfg%v0 = 5.0d0
-  sim_cfg%uf = 30.0d0
-  sim_cfg%vf = 10.0d0
+  sim_cfg%u_min = 0.0d0
+  sim_cfg%v_min = 5.0d0
+  sim_cfg%u_max = 30.0d0
+  sim_cfg%v_max = 10.0d0
 
   ! Integration step sizes
   sim_cfg%du = 0.01d0
@@ -72,11 +72,11 @@ subroutine init_simulation_config(sim_cfg)
   sim_cfg%m0 = 1.0d0
 
   ! Compute grid dimensions
-  sim_cfg%Nu = int((sim_cfg%uf - sim_cfg%u0) / sim_cfg%du + 1.001d0)
-  sim_cfg%Nv = int((sim_cfg%vf - sim_cfg%v0) / sim_cfg%dv + 1.001d0)
+  sim_cfg%Nu = int((sim_cfg%u_max - sim_cfg%u_min) / sim_cfg%du + 1.001d0)
+  sim_cfg%Nv = int((sim_cfg%v_max - sim_cfg%v_min) / sim_cfg%dv + 1.001d0)
 
   ! Estimate maximum array allocation size (used for AMR refinement)
-  sim_cfg%Nu_max = int(2.0d0 * (sim_cfg%uf - sim_cfg%u0) / sim_cfg%reldiff_max)
+  sim_cfg%Nu_max = int(2.0d0 * (sim_cfg%u_max - sim_cfg%u_min) / sim_cfg%reldiff_max)
 end subroutine init_simulation_config
 
 end module simulation_config_mod

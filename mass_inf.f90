@@ -20,7 +20,7 @@ program mass_inflation
   double precision, allocatable, dimension(:)   :: h_S, h_E, h_W, h_N
 
   double precision :: mass, drdv, ricci
-  double precision :: du, dv, u0, v0, uf, vf
+  double precision :: du, dv, u_min, v_min, u_max, v_max
   double precision :: start_time_cpu
   integer          :: Nv, Nu, Nu_max
   double precision :: tempu, tempv
@@ -40,14 +40,14 @@ program mass_inflation
   call startup()
 
   ! Create local aliases for readability
-  du = sim_cfg%du
-  dv = sim_cfg%dv
-  u0 = sim_cfg%u0
-  v0 = sim_cfg%v0
-  uf = sim_cfg%uf
-  vf = sim_cfg%vf
-  Nu = sim_cfg%Nu
-  Nv = sim_cfg%Nv
+  du     = sim_cfg%du
+  dv     = sim_cfg%dv
+  u_min  = sim_cfg%u_min
+  v_min  = sim_cfg%v_min
+  u_max  = sim_cfg%u_max
+  v_max  = sim_cfg%v_max
+  Nu     = sim_cfg%Nu
+  Nv     = sim_cfg%Nv
   Nu_max = sim_cfg%Nu_max
 
   ! Open file for output
@@ -69,9 +69,9 @@ program mass_inflation
   plus = 0
   minus = 0
 
-  u_cur = u0
+  u_cur = u_min
   do j = 1, Nu
-    u(j) = u0 + (j - 1) * du
+    u(j) = u_min + (j - 1) * du
   end do
 
   do j = 1, Nu_max
@@ -80,7 +80,7 @@ program mass_inflation
   end do
 
   next_idx = Nu + 1
-  v = v0
+  v = v_min
 
   call cpu_time(start_time_cpu)
 
@@ -88,14 +88,14 @@ program mass_inflation
   ! At each step we assume we are at the point (u,v).
   do i = 1, Nv - 1
     ! Print progress to stdout (cadence controlled by simulation config)
-    call print_status(i, v, v0, vf, start_time_cpu, h_v0, next_idx, sim_cfg%progress_stride, sim_cfg%progress_header_stride)
+    call print_status(i, v, v_min, v_max, start_time_cpu, h_v0, next_idx, sim_cfg%progress_stride, sim_cfg%progress_header_stride)
 
     ! Output separator line, for easier parsing of data files
     ! TODO: is this a good thing to do?
     call write_output_separator(output_unit, v, sim_cfg)
 
     ! Reset u position each time we advance in v
-    u_cur = u0
+    u_cur = u_min
 
     v = v + dv
 
@@ -108,7 +108,7 @@ program mass_inflation
 
     ! Advance from u to u + du at v + dv
     j = plus(1)
-    do while (u_cur < uf)
+    do while (u_cur < u_max)
       jm1 = minus(j)
 
       ! h_E holds the values that h_N had in the previous step: h(u, v + dv)
@@ -131,7 +131,7 @@ program mass_inflation
           jp1 = plus(j)
 
           do k = 1, neq
-            if (u(jp1) < uf) then
+            if (u(jp1) < u_max) then
               interp_x = (/ u(1), u(jm2), u(jm1), u(j), u(jp1) /)
               interp_y = (/ h_v0(1,k), h_v0(jm2,k), h_v0(jm1,k), h_v0(j,k), &
                             h_v0(jp1,k) /)
