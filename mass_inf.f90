@@ -11,7 +11,7 @@ program mass_inflation
   type(physics_config)    :: cfg
   type(simulation_config) :: sim_cfg
   integer                 :: neq, output_unit
-  double precision        :: u_cur, v, reldiff_r = 0.0d0
+  double precision        :: u_cur, v_cur, reldiff_r = 0.0d0
 
   double precision, allocatable, dimension(:,:) :: h_u0, h_v0
   integer,          allocatable, dimension(:)   :: plus, minus
@@ -78,7 +78,7 @@ program mass_inflation
   end do
 
   next_idx = Nu + 1
-  v = v_min
+  v_cur = v_min
 
   call cpu_time(start_time_cpu)
 
@@ -86,11 +86,12 @@ program mass_inflation
   ! At each step we assume we are at the point (u,v).
   do i = 1, Nv - 1
     ! Print progress to stdout (cadence controlled by simulation config)
-    call print_status(i, v, v_min, v_max, start_time_cpu, h_v0, next_idx, sim_cfg%progress_stride, sim_cfg%progress_header_stride)
+    call print_status(i, v_cur, v_min, v_max, start_time_cpu, h_v0, next_idx, &
+                      sim_cfg%progress_stride, sim_cfg%progress_header_stride)
 
     ! Output separator line, for easier parsing of data files
     ! TODO: is this a good thing to do?
-    call write_output_separator(output_unit, v, sim_cfg)
+    call write_output_separator(output_unit, v_cur, sim_cfg)
 
     ! Reset u position each time we advance in v
     u_cur = u_min
@@ -158,7 +159,7 @@ program mass_inflation
       call step(h_N, h_S, h_E, h_W, du, dv, cfg, N_PICARD_ITERATIONS)
       h_v1(j, :) = h_N(:)
 
-      call write_output(output_unit, u_cur, v, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
+      call write_output(output_unit, u_cur, v_cur, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
 
       j = plus(j)
       u_cur = u_cur + du
@@ -170,7 +171,7 @@ program mass_inflation
     h_v0(1:next_idx, :) = h_v1(1:next_idx, :)
 
     ! Advance in v
-    v = v + dv
+    v_cur = v_cur + dv
   end do
 
   close(output_unit)
