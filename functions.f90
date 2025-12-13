@@ -214,7 +214,7 @@ subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, s
   double precision :: temp
   logical :: u_ok, v_ok
   double precision, dimension(:), allocatable :: h_P, dhdu_P, dhdv_P, dhduv_P
-  double precision :: mass, drdv, ricci
+  double precision :: u_P, v_P, mass, drdv, ricci
 
   ! Check output condition FIRST, before doing any work.
   ! Output condition: write when current (u,v) aligns with sampling spacings.
@@ -240,6 +240,10 @@ subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, s
   neq_local = size(h_N)
   allocate(h_P(neq_local), dhdu_P(neq_local), dhdv_P(neq_local), dhduv_P(neq_local))
 
+  ! The diagnostics are computed at the midpoint P = (u+du/2, v+dv/2)
+  u_P = u_val + 0.5d0 * du
+  v_P = v_val + 0.5d0 * dv
+
   h_P     = 0.25d0 * (h_N + h_S + h_E - h_W)
   dhdu_P  = (h_W - h_S + h_N - h_E) * 0.5d0 / du
   dhdv_P  = (h_E - h_S + h_N - h_W) * 0.5d0 / dv
@@ -247,7 +251,7 @@ subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, s
   call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq_local, cfg)
   call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
 
-  write(output_unit,*) (/ u_val, v_val, h_N, (/ mass, drdv, ricci /) /)
+  write(output_unit,*) (/ u_P, v_P, h_P, (/ mass, drdv, ricci /) /)
 
   deallocate(h_P, dhdu_P, dhdv_P, dhduv_P)
 end subroutine write_output
