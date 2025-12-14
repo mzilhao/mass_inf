@@ -97,7 +97,7 @@ program mass_inflation
   Nu_max = sim_cfg%Nu_max
 
   ! Open output files
-  call open_diagnostics(out_dir, cfg, sim_cfg)
+  call open_output_files(out_dir)
 
   ! Initialize boundary conditions (returns allocated h_u0, h_v0)
   call init_cond(h_u0, h_v0, sim_cfg, cfg)
@@ -218,7 +218,7 @@ program mass_inflation
   end do
 
   ! Close output files
-  call close_diagnostics()
+  call close_output_files()
 
   deallocate(h_u0, h_v0, u, minus, plus, h_v1)
 

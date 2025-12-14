@@ -21,12 +21,13 @@ module functions
   implicit none
   double precision, parameter :: PI = 4.0d0 * atan(1.0d0)
   integer, parameter :: NEQ = 3      ! Number of equations/fields: r, phi, sigma
-  integer, save :: diag_unit = -1
-  logical, save :: diag_open = .false.
+  integer, save :: diag_unit = -1, fields_unit = -1, derivs_unit = -1
+  logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
+
   private
   public :: F, init_physics_config, read_physics_config_from_file, init_cond
-  public :: compute_diagnostics, write_output, write_output_header
-  public :: open_diagnostics, close_diagnostics
+  public :: compute_diagnostics, write_output
+  public :: open_output_files, close_output_files
   public :: NEQ
 
 contains
@@ -91,11 +92,11 @@ subroutine read_physics_config_from_file(cfg, filename)
 end subroutine read_physics_config_from_file
 
 !> Compute model-dependent diagnostics (mass, drdv, Ricci)
-subroutine compute_diagnostics(h, dhdu, dhdv, dhduv, cfg, mass, drdv, ricci)
+subroutine compute_diagnostics(h, dhdu, dhdv, dhduv, cfg, mass, ricci)
   implicit none
   double precision, dimension(:), intent(in)  :: h, dhdu, dhdv, dhduv
   type(physics_config), intent(in)            :: cfg
-  double precision,           intent(out)     :: mass, drdv, ricci
+  double precision,           intent(out)     :: mass, ricci
 
   integer :: D
   double precision :: lambda, q2
@@ -104,15 +105,13 @@ subroutine compute_diagnostics(h, dhdu, dhdv, dhduv, cfg, mass, drdv, ricci)
   lambda = cfg%lambda
   q2 = cfg%q2
 
-  drdv = dhdv(1)
-
   mass = 0.5d0 * h(1)**(D-3) * ( 1.d0 - lambda/3.d0 * h(1)*h(1)           &
         + q2 / ( (h(1)*h(1))**(D-3) )                                     &
         + 2.d0 * dhdu(1) * dhdv(1) / exp(2.d0 * h(3)) )
 
   ricci = (D-3)*(D-2)/( h(1)*h(1) ) * (                                   &
-        1 + 2*exp(-2*h(3)) * dhdu(1)*dhdv(1)                             &
-        )                                                                &
+        1 + 2*exp(-2*h(3)) * dhdu(1)*dhdv(1)                              &
+        )                                                                 &
         + 4*exp(-2*h(3))*dhduv(3) + 4*(D-2)*dhduv(1)*exp(-2*h(3)) / h(1)
 end subroutine compute_diagnostics
 
@@ -232,40 +231,48 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
 end subroutine init_cond
 
 !====================================================================================
-!> Initialize output file with physics model header
-subroutine write_output_header(output_unit)
-  integer, intent(in) :: output_unit
-
-  ! Column headers
-  write(output_unit, '(a)') '# Columns: u, r, phi, sigma, mass, drdv, Ricci'
-end subroutine write_output_header
-
-!> Open diagnostics output file and write header
-subroutine open_diagnostics(out_dir, cfg, sim_cfg)
+!> Open all output files
+subroutine open_output_files(out_dir)
   character(len=*), intent(in)      :: out_dir
-  type(physics_config), intent(in)  :: cfg
-  type(simulation_config), intent(in) :: sim_cfg
 
-  if (diag_open) call close_diagnostics()
+  if (diag_open .or. fields_open .or. derivs_open) call close_output_files()
 
-  open(newunit=diag_unit, file=trim(out_dir)//'/data.dat', status='replace')
-  call write_output_header(diag_unit)
-  diag_open = .true.
-end subroutine open_diagnostics
+  open(newunit=fields_unit, file=trim(out_dir)//'/fields.dat', status='replace')
+  open(newunit=diag_unit, file=trim(out_dir)//'/diagnostics.dat', status='replace')
+  open(newunit=derivs_unit, file=trim(out_dir)//'/derivatives.dat', status='replace')
 
-!> Close diagnostics output file if open
-subroutine close_diagnostics()
+  write(fields_unit, '(a)') '# Columns: u, r, phi, sigma'
+  write(diag_unit,   '(a)') '# Columns: u, mass, Ricci'
+  write(derivs_unit, '(a)') '# Columns: u, drdu, drdv'
+
+  fields_open = .true.
+  diag_open   = .true.
+  derivs_open = .true.
+end subroutine open_output_files
+
+!> Close all output files if open
+subroutine close_output_files()
+  if (fields_open .and. fields_unit > 0) then
+    close(fields_unit)
+  end if
   if (diag_open .and. diag_unit > 0) then
     close(diag_unit)
   end if
-  diag_unit = -1
-  diag_open = .false.
-end subroutine close_diagnostics
+  if (derivs_open .and. derivs_unit > 0) then
+    close(derivs_unit)
+  end if
+  fields_unit = -1
+  fields_open = .false.
+  diag_unit   = -1
+  diag_open   = .false.
+  derivs_unit = -1
+  derivs_open = .false.
+end subroutine close_output_files
 
 !====================================================================================
 !> Compute diagnostics and write them if output cadence is met
 !!
-!! Writes columnar ASCII output: u, r, phi, sigma, mass, drdv, Ricci
+!! Writes ASCII output in columns.
 !! v-slices are marked with comment lines: # v = X.XXXXX
 subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
   double precision, intent(in)        :: u_val, v_val, du, dv
@@ -280,7 +287,7 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
 
   double precision, save :: last_v_marked_val = -1.0d99
 
-  if (.not. diag_open) error stop 'write_output: diagnostics file not open'
+  if (.not. (fields_open .and. diag_open .and. derivs_open)) error stop 'write_output: output files not open'
 
   ! Check output condition first, before doing any work
   ! Output condition: write when current (u,v) aligns with sampling spacings.
@@ -308,8 +315,12 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
 
   ! Write a new v-slice block if v_val is more than one half output_dv away from last marked
   if (abs(v_val - last_v_marked_val) > 0.5d0 * sim_cfg%output_dv) then
-    write(diag_unit, '(a)')
-    write(diag_unit, '(a,f10.6)') '# v = ', v_P
+    write(fields_unit, '(a)')
+    write(fields_unit, '(a,f10.6)') '# v = ', v_P
+    write(diag_unit,   '(a)')
+    write(diag_unit,   '(a,f10.6)') '# v = ', v_P
+    write(derivs_unit, '(a)')
+    write(derivs_unit, '(a,f10.6)') '# v = ', v_P
     last_v_marked_val = v_val
   end if
 
@@ -318,11 +329,12 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
   dhdv_P  = (h_E - h_S + h_N - h_W) * 0.5d0 / dv
 
   call F(dhduv_P, h_P, dhdu_P, dhdv_P, cfg)
-  call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
+  call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, ricci)
 
-  ! Write columnar output: u, r, phi, sigma, mass, drdv, Ricci
-
-  write(diag_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3), mass, drdv, ricci
+  ! Write columnar output
+  write(fields_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3) ! u, r, phi, sigma
+  write(diag_unit,   '(7e16.8)') u_P, mass, ricci            ! u, mass, Ricci
+  write(derivs_unit, '(7e16.8)') u_P, dhdu_P(1), dhdv_P(1)   ! u, drdu, drdv
 
 end subroutine write_output
 
