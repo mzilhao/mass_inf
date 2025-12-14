@@ -10,6 +10,7 @@ program mass_inflation
   ! Physics and simulation configuration
   type(physics_config)    :: cfg
   type(simulation_config) :: sim_cfg
+
   double precision        :: u_cur, v_cur, reldiff_r = 0.0d0
 
   double precision, allocatable, dimension(:,:) :: h_u0, h_v0
@@ -21,30 +22,47 @@ program mass_inflation
   double precision :: du, dv, u_min, v_min, u_max, v_max
   double precision :: start_time_cpu
   integer          :: Nv, Nu, Nu_max
+  integer          :: i, j, k, jm1, jm2, jm3, jp1, next_idx
 
-  integer :: i, j, k, jm1, jm2, jm3, jp1, next_idx
-  character(len=256) :: out_dir
-
-  ! Named constants for clarity
   integer, parameter :: N_PICARD_ITERATIONS = 4
   integer, parameter :: N_INTERP_POINTS = 5
   double precision, dimension(N_INTERP_POINTS) :: interp_x, interp_y
-  character(len=256) :: param_file
-  logical :: param_file_exists
-  integer :: num_args, iostat
-  character(len=256) :: arg, prog_name
+
+  ! IO and file management
+  character(len=256) :: out_dir, param_file, arg, prog_name
+  logical :: param_file_exists, out_dir_exists, force_overwrite
+  integer :: num_args, iostat, arg_idx
+
 
   ! Parse command line arguments
   call get_command_argument(0, prog_name)
   num_args = command_argument_count()
+  force_overwrite = .false.
 
-  if (num_args /= 1) then
-    write(*, '(a,a,a)') 'Usage: ', trim(prog_name), ' <parameter_file.nml>'
+  if (num_args < 1 .or. num_args > 2) then
+    write(*, '(a,a,a)') 'Usage: ', trim(prog_name), ' [-f] <parameter_file.nml>'
+    write(*, '(a)') ''
+    write(*, '(a)') 'Options:'
+    write(*, '(a)') '  -f                 force overwrite of existing output directory'
     call exit(1)
   end if
 
+  ! Check for -f flag
+  arg_idx = 1
+  if (num_args == 2) then
+    call get_command_argument(1, arg)
+    if (trim(arg) == '-f') then
+      force_overwrite = .true.
+      arg_idx = 2
+    else
+      write(*, '(a,a,a)') 'Error: unknown option "', trim(arg), '"'
+      write(*, '(a,a,a)') 'Usage: ', trim(prog_name), ' [-f] <parameter_file.nml>'
+      call exit(1)
+    end if
+  end if
+
   ! Read parameter file
-  call get_command_argument(1, arg)
+  call get_command_argument(arg_idx, arg)
   param_file = trim(arg)
   inquire(file=param_file, exist=param_file_exists)
   if (.not. param_file_exists) then
@@ -70,10 +88,25 @@ program mass_inflation
   if (len_trim(sim_cfg%output_base_dir) > 0) then
     out_dir = trim(sim_cfg%output_base_dir) // '/' // trim(out_dir)
   end if
+
   if (len_trim(out_dir) > 0) then
-      call execute_command_line('mkdir -p ' // trim(out_dir))
-      ! Copy input parameter file to output directory for reproducibility
-      call execute_command_line('cp "' // trim(param_file) // '" "' // trim(out_dir) // '/"')
+    ! Check if output directory already exists
+    inquire(file=trim(out_dir)//'/.', exist=out_dir_exists)
+
+    if (out_dir_exists) then
+      if (force_overwrite) then
+        write(*, '(a,a,a)') 'Warning: removing existing directory "', trim(out_dir), '"'
+        call execute_command_line('rm -rf "' // trim(out_dir) // '"')
+      else
+        write(*, '(a,a,a)') 'Error: output directory "', trim(out_dir), '" already exists.'
+        write(*, '(a)') 'Use -f flag to force overwrite, or remove the directory manually.'
+        call exit(1)
+      end if
+    end if
+
+    call execute_command_line('mkdir -p ' // trim(out_dir))
+    ! Copy input parameter file to output directory for reproducibility
+    call execute_command_line('cp "' // trim(param_file) // '" "' // trim(out_dir) // '/"')
   end if
 
   call startup()
