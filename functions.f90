@@ -26,7 +26,6 @@ module functions
   private
   public :: F, init_physics_config, read_physics_config_from_file, init_cond
   public :: compute_diagnostics, write_output, write_output_header
-  public :: write_run_config
   public :: open_diagnostics, close_diagnostics
   public :: NEQ
 
@@ -240,24 +239,6 @@ subroutine write_output_header(output_unit)
   ! Column headers
   write(output_unit, '(a)') '# Columns: u, r, phi, sigma, mass, drdv, Ricci'
 end subroutine write_output_header
-
-!> Write a self-contained namelist capturing the current run configuration
-subroutine write_run_config(out_dir, cfg, sim_cfg)
-  character(len=*), intent(in)       :: out_dir
-  type(physics_config), intent(in)   :: cfg
-  type(simulation_config), intent(in) :: sim_cfg
-  integer :: unit, ierr
-
-  namelist /physics/ cfg
-  namelist /simulation/ sim_cfg
-
-  open(newunit=unit, file=trim(out_dir)//'/run_params.nml', status='replace', iostat=ierr)
-  if (ierr /= 0) error stop 'write_run_config: could not open run_params.nml'
-
-  write(unit, nml=physics)
-  write(unit, nml=simulation)
-  close(unit)
-end subroutine write_run_config
 
 !> Open diagnostics output file and write header
 subroutine open_diagnostics(out_dir, cfg, sim_cfg)

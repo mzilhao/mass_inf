@@ -72,10 +72,9 @@ program mass_inflation
   end if
   if (len_trim(out_dir) > 0) then
       call execute_command_line('mkdir -p ' // trim(out_dir))
+      ! Copy input parameter file to output directory for reproducibility
+      call execute_command_line('cp "' // trim(param_file) // '" "' // trim(out_dir) // '/"')
   end if
-
-  ! Write run configuration to output directory
-  call write_run_config(out_dir, cfg, sim_cfg)
 
   call startup()
 
