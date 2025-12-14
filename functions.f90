@@ -3,15 +3,14 @@ module physics_config_mod
 
   !> Physics configuration type - encapsulates all physics parameters
   type :: physics_config
-    integer :: D = 4                            ! Spacetime dimension
     integer :: neq = 3                          ! Number of equations
+    integer :: D = 4                            ! Spacetime dimension
     double precision :: lambda = 0.0d0          ! Cosmological constant
     double precision :: A = 0.0d0               ! Scalar field amplitude
     double precision :: Delta = 1.0d0           ! Scalar field width
     double precision :: q = 0.95d0              ! Electric charge
 
     double precision :: q2 = 0.0d0, qq2 = 0.0d0, qq = 0.0d0  ! Derived constants, dummy values
-    double precision :: Pi = 3.1415926535897932384626433d0
   end type physics_config
 
 end module physics_config_mod
@@ -20,6 +19,7 @@ module functions
   use physics_config_mod
   use simulation_config_mod
   implicit none
+  double precision, parameter :: PI = 4.0d0 * atan(1.0d0)
   private
   public :: F, init_physics_config, read_physics_config_from_file, init_cond
   public :: compute_diagnostics, write_output, write_output_header
@@ -156,14 +156,13 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
 
   ! Local variables
   integer :: i, D
-  double precision :: u, v, Pi, lambda, q2
+  double precision :: u, v, lambda, q2
   double precision :: r00, sigma_0, m0, ru0, v1
   double precision :: A, Delta
   logical :: scalarfield
 
   ! Extract config values
   D = cfg%D
-  Pi = cfg%Pi
   lambda = cfg%lambda
   q2 = cfg%q2
   A = cfg%A
