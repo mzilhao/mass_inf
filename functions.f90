@@ -67,13 +67,16 @@ subroutine read_physics_config_from_file(cfg, filename)
   open(newunit=unit, file=filename, status='old', action='read', iostat=ierr)
   if (ierr /= 0) then
     write(*, '(a,a,a)') 'Error: could not open parameter file "', trim(filename), '"'
-  else
-    read(unit, nml=physics, iostat=ierr)
-    if (ierr /= 0) then
-      write(*, '(a,a,a)') 'Error: could not read &physics namelist from "', trim(filename), '"'
-    end if
-    close(unit)
+    call exit(1)
   end if
+
+  read(unit, nml=physics, iostat=ierr)
+  if (ierr /= 0) then
+    write(*, '(a,a,a)') 'Error: could not read &physics namelist from "', trim(filename), '"'
+    close(unit)
+    call exit(1)
+  end if
+  close(unit)
 
   ! Update cfg with (possibly modified) namelist values
   cfg%D      = D

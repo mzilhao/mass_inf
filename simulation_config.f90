@@ -75,13 +75,16 @@ subroutine read_simulation_config_from_file(sim_cfg, filename)
   open(newunit=unit, file=filename, status='old', action='read', iostat=ierr)
   if (ierr /= 0) then
     write(*, '(a,a,a)') 'Error: could not open parameter file "', trim(filename), '"'
-  else
-    read(unit, nml=simulation, iostat=ierr)
-    if (ierr /= 0) then
-      write(*, '(a,a,a)') 'Error: could not read &simulation namelist from "', trim(filename), '"'
-    end if
-    close(unit)
+    call exit(1)
   end if
+
+  read(unit, nml=simulation, iostat=ierr)
+  if (ierr /= 0) then
+    write(*, '(a,a,a)') 'Error: could not read &simulation namelist from "', trim(filename), '"'
+    close(unit)
+    call exit(1)
+  end if
+  close(unit)
 
   ! Update sim_cfg with (possibly modified) namelist values
   sim_cfg%u_min = u_min
