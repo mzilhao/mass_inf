@@ -61,9 +61,8 @@ program mass_inflation
     end if
   end if
 
-  ! Read parameter file
-  call get_command_argument(arg_idx, arg)
-  param_file = trim(arg)
+  ! Get parameter file path
+  call get_command_argument(arg_idx, param_file)
   inquire(file=param_file, exist=param_file_exists)
   if (.not. param_file_exists) then
     write(*, '(a,a,a)') 'Error: file "', trim(param_file), '" not found.'
@@ -83,33 +82,8 @@ program mass_inflation
   call read_simulation_config_from_file(sim_cfg, param_file)
   call read_physics_config_from_file(cfg, param_file)
 
-  ! Build output directory, with base dir from sim_cfg.
-  ! Note: if, for some reason, we ever want to run in windows, this needs to be adapted.
-  if (len_trim(sim_cfg%output_base_dir) > 0) then
-    out_dir = trim(sim_cfg%output_base_dir) // '/' // trim(out_dir)
-  end if
-
-  if (len_trim(out_dir) > 0) then
-    ! Check if output directory already exists
-    inquire(file=trim(out_dir)//'/.', exist=out_dir_exists)
-
-    if (out_dir_exists) then
-      if (force_overwrite) then
-        write(*, '(a,a,a)') 'Warning: removing existing directory "', trim(out_dir), '"'
-        call execute_command_line('rm -rf "' // trim(out_dir) // '"')
-      else
-        write(*, '(a,a,a)') 'Error: output directory "', trim(out_dir), '" already exists.'
-        write(*, '(a)') 'Use -f flag to force overwrite, or remove the directory manually.'
-        call exit(1)
-      end if
-    end if
-
-    call execute_command_line('mkdir -p ' // trim(out_dir))
-    ! Copy input parameter file to output directory for reproducibility
-    call execute_command_line('cp "' // trim(param_file) // '" "' // trim(out_dir) // '/"')
-  end if
-
-  call startup()
+  ! Setup output directory and print startup banner
+  call startup(param_file, out_dir, force_overwrite, sim_cfg%output_base_dir)
 
   ! Create local aliases for readability
   du     = sim_cfg%du

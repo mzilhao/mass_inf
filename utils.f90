@@ -67,11 +67,17 @@ end subroutine print_status
 
 
 !> Print ASCII banner and general info to stdout at startup
-subroutine startup()
+subroutine startup(param_file, out_dir, force_overwrite, output_base_dir)
+  character(len=256), intent(in) :: param_file
+  character(len=256), intent(inout) :: out_dir
+  logical, intent(in) :: force_overwrite
+  character(len=256), intent(in) :: output_base_dir
+
   character(len=8) :: date_str
   character(len=10) :: time_str
   character(len=256) :: username, hostname
   integer :: stat
+  logical :: out_dir_exists
 
   ! Get runtime info
   call date_and_time(DATE=date_str, TIME=time_str)
@@ -80,7 +86,32 @@ subroutine startup()
   call get_environment_variable('HOSTNAME', hostname, status=stat)
   if (stat /= 0) hostname = 'unknown'
 
+  ! Setup output directory
+  if (len_trim(output_base_dir) > 0) then
+    out_dir = trim(output_base_dir) // '/' // trim(out_dir)
+  end if
 
+  if (len_trim(out_dir) > 0) then
+    ! Check if output directory already exists
+    inquire(file=trim(out_dir)//'/.', exist=out_dir_exists)
+
+    if (out_dir_exists) then
+      if (force_overwrite) then
+        write(*, '(a,a,a)') 'Warning: removing existing directory "', trim(out_dir), '"'
+        call execute_command_line('rm -rf "' // trim(out_dir) // '"')
+      else
+        write(*, '(a,a,a)') 'Error: output directory "', trim(out_dir), '" already exists.'
+        write(*, '(a)') 'Use -f flag to force overwrite, or remove the directory manually.'
+        call exit(1)
+      end if
+    end if
+
+    call execute_command_line('mkdir -p ' // trim(out_dir))
+    ! Copy input parameter file to output directory for reproducibility
+    call execute_command_line('cp "' // trim(param_file) // '" "' // trim(out_dir) // '/"')
+  end if
+
+  ! Print banner
   write(*,'(a)') '======================================================================='
   write(*,'(a)') ''
   write(*,'(a)') '                    x\                /x'
@@ -123,7 +154,6 @@ subroutine startup()
   write(*,'(a)') '======================================================================='
   write(*,'(a)') ''
 
-  ! Format and print
   write(*,'(a,a4,a,a2,a,a2)') 'Run date: ', date_str(1:4), '-', date_str(5:6), '-', date_str(7:8)
   write(*,'(a,a2,a,a2,a,a2)') 'Run time: ', time_str(1:2), ':', time_str(3:4), ':', time_str(5:6)
   write(*,'(a,a)') 'User:     ', trim(username)
