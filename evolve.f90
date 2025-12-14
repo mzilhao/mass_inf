@@ -36,7 +36,7 @@ subroutine step(h_N, h_S, h_E, h_W, du, dv, cfg, n_picard)
   ! Store cfg in module scope for rhs_wrapper to access
   cfg_module = cfg
 
-  call pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_wrapper, cfg%neq, n_picard)
+  call pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_wrapper, NEQ, n_picard)
 end subroutine step
 
 !> RHS wrapper that accesses physics config from module scope

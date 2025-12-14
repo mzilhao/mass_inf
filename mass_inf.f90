@@ -10,7 +10,7 @@ program mass_inflation
   ! Physics and simulation configuration
   type(physics_config)    :: cfg
   type(simulation_config) :: sim_cfg
-  integer                 :: neq, output_unit
+  integer                 :: output_unit
   double precision        :: u_cur, v_cur, reldiff_r = 0.0d0
 
   double precision, allocatable, dimension(:,:) :: h_u0, h_v0
@@ -62,8 +62,6 @@ program mass_inflation
     call exit(1)
   end if
 
-  neq = cfg%neq
-
   call startup()
 
   ! Create local aliases for readability
@@ -86,8 +84,8 @@ program mass_inflation
 
   allocate(plus(Nu_max), minus(Nu_max))
   allocate(u(Nu_max))
-  allocate(h_v1(Nu_max, neq))
-  allocate(h_S(neq), h_E(neq), h_W(neq), h_N(neq))
+  allocate(h_v1(Nu_max, NEQ))
+  allocate(h_S(NEQ), h_E(NEQ), h_W(NEQ), h_N(NEQ))
 
   ! Array 'u' will hold all values of u on v slices. We start with
   ! a uniform grid, but this may change with AMR. Linked lists 'plus' and 'minus'
@@ -151,7 +149,7 @@ program mass_inflation
           jm3 = minus(jm2)
           jp1 = plus(j)
 
-          do k = 1, neq
+          do k = 1, NEQ
             if (u(jp1) < u_max) then
               interp_x = (/ u(1), u(jm2), u(jm1), u(j), u(jp1) /)
               interp_y = (/ h_v0(1,k), h_v0(jm2,k), h_v0(jm1,k), h_v0(j,k), &

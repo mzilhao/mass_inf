@@ -1,9 +1,10 @@
 module physics_config_mod
   implicit none
 
+  integer, parameter :: NEQ = 3  ! Number of equations
+
   !> Physics configuration type - encapsulates all physics parameters
   type :: physics_config
-    integer :: neq = 3                          ! Number of equations
     integer :: D = 4                            ! Spacetime dimension
     double precision :: lambda = 0.0d0          ! Cosmological constant
     double precision :: A = 0.0d0               ! Scalar field amplitude
@@ -125,7 +126,7 @@ subroutine F(dhduv, h, dhdu, dhdv, neq, cfg)
   integer :: D
   double precision :: lambda, qq2
 
-  if (neq /= cfg%neq) error stop "F: neq mismatch with config"
+  if (neq /= NEQ) error stop "F: neq mismatch with NEQ"
 
   ! Extract config values for cleaner code
   D = cfg%D
@@ -173,8 +174,8 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
   m0     = cfg%m0
 
   ! Allocate boundary condition arrays
-  allocate(h_u0(sim_cfg%Nv, cfg%neq))
-  allocate(h_v0(sim_cfg%Nu_max, cfg%neq))
+  allocate(h_u0(sim_cfg%Nv, NEQ))
+  allocate(h_v0(sim_cfg%Nu_max, NEQ))
   h_u0 = 0.0d0
   h_v0 = 0.0d0
 
