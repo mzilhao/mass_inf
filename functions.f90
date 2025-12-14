@@ -114,19 +114,16 @@ end subroutine compute_diagnostics
 !> Right-hand side of the PDE system
 !! Inputs: h (field values), dhdu, dhdv (derivatives)
 !! Output: dhduv (mixed derivatives)
-subroutine F(dhduv, h, dhdu, dhdv, neq, cfg)
+subroutine F(dhduv, h, dhdu, dhdv, cfg)
   implicit none
 
-  integer, intent(in) :: neq
-  double precision, dimension(neq), intent(out) :: dhduv
-  double precision, dimension(neq), intent(in)  :: h, dhdu, dhdv
+  double precision, dimension(NEQ), intent(out) :: dhduv
+  double precision, dimension(NEQ), intent(in)  :: h, dhdu, dhdv
   type(physics_config), intent(in) :: cfg
 
   ! Local copies for readability
   integer :: D
   double precision :: lambda, qq2
-
-  if (neq /= NEQ) error stop "F: neq mismatch with NEQ"
 
   ! Extract config values for cleaner code
   D = cfg%D
@@ -273,10 +270,9 @@ subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, s
   type(simulation_config), intent(in) :: sim_cfg
   type(physics_config),    intent(in) :: cfg
 
-  integer :: neq_local
   double precision :: temp
   logical :: u_ok, v_ok
-  double precision, dimension(:), allocatable :: h_P, dhdu_P, dhdv_P, dhduv_P
+  double precision, dimension(NEQ) :: h_P, dhdu_P, dhdv_P, dhduv_P
   double precision :: u_P, v_P, mass, drdv, ricci
 
   double precision, save :: last_v_marked_val = -1.0d99
@@ -312,20 +308,16 @@ subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, s
     last_v_marked_val = v_val
   end if
 
-  neq_local = size(h_N)
-  allocate(h_P(neq_local), dhdu_P(neq_local), dhdv_P(neq_local), dhduv_P(neq_local))
-
   h_P     = 0.25d0 * (h_N + h_S + h_E - h_W)
   dhdu_P  = (h_W - h_S + h_N - h_E) * 0.5d0 / du
   dhdv_P  = (h_E - h_S + h_N - h_W) * 0.5d0 / dv
 
-  call F(dhduv_P, h_P, dhdu_P, dhdv_P, neq_local, cfg)
+  call F(dhduv_P, h_P, dhdu_P, dhdv_P, cfg)
   call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
 
   ! Write columnar output: u, r, phi, sigma, mass, drdv, Ricci
   write(output_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3), mass, drdv, ricci
 
-  deallocate(h_P, dhdu_P, dhdv_P, dhduv_P)
 end subroutine write_output
 
 

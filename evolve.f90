@@ -46,7 +46,7 @@ subroutine rhs_wrapper(dhduv, h, dhdu, dhdv, neq)
   double precision, dimension(neq), intent(out) :: dhduv
   double precision, dimension(neq), intent(in)  :: h, dhdu, dhdv
 
-  call F(dhduv, h, dhdu, dhdv, neq, cfg_module)
+  call F(dhduv, h, dhdu, dhdv, cfg_module)
 end subroutine rhs_wrapper
 
 end module evolve_wrapper
