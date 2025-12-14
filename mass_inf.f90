@@ -24,7 +24,8 @@ program mass_inflation
   integer          :: Nv, Nu, Nu_max
 
   integer :: i, j, k, jm1, jm2, jm3, jp1, next_idx
-  character(len=20), parameter :: filename = 'data.dat'
+  character(len=256) :: filename
+  character(len=256) :: out_dir
 
   ! Named constants for clarity
   integer, parameter :: N_PICARD_ITERATIONS = 4
@@ -38,29 +39,43 @@ program mass_inflation
   ! Parse command line arguments
   call get_command_argument(0, prog_name)
   num_args = command_argument_count()
-  if (num_args == 0) then
-    ! No arguments: use defaults
-    write(*, '(a)') 'Warning: No parameter file specified. Using defaults.'
-    write(*, '(a)') ''
-    cfg = physics_config()
-    call init_physics_config(cfg)
-    sim_cfg = simulation_config()
-    call compute_grid_dimensions(sim_cfg)
-  else if (num_args == 1) then
-    ! One argument: read parameter file
-    call get_command_argument(1, arg)
-    param_file = trim(arg)
-    inquire(file=param_file, exist=param_file_exists)
-    if (.not. param_file_exists) then
-      write(*, '(a,a,a)') 'Error: parameter file "', trim(param_file), '" not found.'
-      call exit(1)
-    end if
-    call read_physics_config_from_file(cfg, param_file)
-    call read_simulation_config_from_file(sim_cfg, param_file)
-  else
-    write(*, '(a,a,a)') 'Error: too many arguments. Usage: ', trim(prog_name), ' [parameter_file.nml]'
+
+  if (num_args /= 1) then
+    write(*, '(a,a,a)') 'Usage: ', trim(prog_name), ' <parameter_file.nml>'
     call exit(1)
   end if
+
+  ! Read parameter file
+  call get_command_argument(1, arg)
+  param_file = trim(arg)
+  inquire(file=param_file, exist=param_file_exists)
+  if (.not. param_file_exists) then
+    write(*, '(a,a,a)') 'Error: file "', trim(param_file), '" not found.'
+    call exit(1)
+  end if
+
+  ! Derive output directory name from parameter file (basename without extension)
+  out_dir = trim(param_file)
+  ! Strip any leading path
+  i = index(out_dir, '/', back=.true.)
+  if (i > 0) out_dir = out_dir(i+1:)
+  ! Strip extension if present
+  j = index(out_dir, '.', back=.true.)
+  if (j > 0) out_dir = out_dir(:j-1)
+
+  ! Read simulation and physics configurations
+  call read_simulation_config_from_file(sim_cfg, param_file)
+  call read_physics_config_from_file(cfg, param_file)
+
+  ! Build output directory, honoring base dir from sim_cfg.
+  ! Note: if, for some reason, we ever want to run in windows, this needs to be adapted.
+  if (len_trim(sim_cfg%output_base_dir) > 0) then
+    out_dir = trim(sim_cfg%output_base_dir) // '/' // trim(out_dir)
+  end if
+  if (len_trim(out_dir) > 0) then
+      call execute_command_line('mkdir -p ' // trim(out_dir))
+  end if
+
 
   call startup()
 
@@ -76,6 +91,7 @@ program mass_inflation
   Nu_max = sim_cfg%Nu_max
 
   ! Open file for output
+  filename = trim(out_dir) // '/data.dat'
   open(newunit=output_unit, file=filename, status='replace')
   call write_output_header(output_unit, cfg, sim_cfg)
 

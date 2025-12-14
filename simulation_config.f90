@@ -24,6 +24,7 @@ module simulation_config_mod
     ! Output sampling spacing (absolute values in domain units)
     double precision :: output_du = 0.05d0             ! Write every this Δu
     double precision :: output_dv = 0.05d0             ! Write every this Δv
+    character(len=256) :: output_base_dir = ''         ! Base dir under which run folder is created ('' = CWD)
 
     ! Progress reporting cadence (stdout)
     integer :: progress_stride = 100
@@ -46,10 +47,11 @@ subroutine read_simulation_config_from_file(sim_cfg, filename)
   ! Local variables for namelist reading
   double precision :: u_min, v_min, u_max, v_max, du, dv, reldiff_max
   double precision :: output_du, output_dv
+  character(len=256) :: output_base_dir
   logical :: AMR
   integer :: progress_stride, progress_header_stride
   namelist /simulation/ u_min, v_min, u_max, v_max, du, dv, AMR, reldiff_max, &
-                        output_du, output_dv, progress_stride, progress_header_stride
+                        output_du, output_dv, output_base_dir, progress_stride, progress_header_stride
 
   integer :: unit, ierr
 
@@ -65,6 +67,7 @@ subroutine read_simulation_config_from_file(sim_cfg, filename)
   reldiff_max = sim_cfg%reldiff_max
   output_du = sim_cfg%output_du
   output_dv = sim_cfg%output_dv
+  output_base_dir = sim_cfg%output_base_dir
   progress_stride        = sim_cfg%progress_stride
   progress_header_stride = sim_cfg%progress_header_stride
 
@@ -91,6 +94,7 @@ subroutine read_simulation_config_from_file(sim_cfg, filename)
   sim_cfg%reldiff_max = reldiff_max
   sim_cfg%output_du = output_du
   sim_cfg%output_dv = output_dv
+  sim_cfg%output_base_dir = output_base_dir
   sim_cfg%progress_stride = progress_stride
   sim_cfg%progress_header_stride = progress_header_stride
 
