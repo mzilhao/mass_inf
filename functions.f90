@@ -26,6 +26,7 @@ module functions
   private
   public :: F, init_physics_config, read_physics_config_from_file, init_cond
   public :: compute_diagnostics, write_output, write_output_header
+  public :: write_run_config
   public :: open_diagnostics, close_diagnostics
   public :: NEQ
 
@@ -230,36 +231,30 @@ end subroutine init_cond
 
 !====================================================================================
 !> Initialize output file with physics model header
-subroutine write_output_header(output_unit, cfg, sim_cfg)
+subroutine write_output_header(output_unit)
   integer, intent(in) :: output_unit
-  type(physics_config), intent(in) :: cfg
-  type(simulation_config), intent(in) :: sim_cfg
-
-  ! Physics parameters
-  write(output_unit, '(a,i2)')    '# D         = ', cfg%D
-  write(output_unit, '(a,g10.4)') '# lambda    = ', cfg%lambda
-  write(output_unit, '(a,g10.4)') '# q         = ', sqrt(cfg%q2)
-  write(output_unit, '(a,g10.4)') '# A         = ', cfg%A
-  write(output_unit, '(a,g10.4)') '# Delta     = ', cfg%Delta
-  ! FIXME: hardcoded initial conditions info
-  write(output_unit, '(a,g10.4)') '# sigma_0   = ', -0.5d0 * log(2.0d0)
-  write(output_unit, '(a,g10.4)') '# m0        = ', 1.0d0
-
-  ! Grid parameters
-  write(output_unit, '(a)') '#'
-  write(output_unit, '(a,g14.6)') '# u_min     = ', sim_cfg%u_min
-  write(output_unit, '(a,g14.6)') '# u_max     = ', sim_cfg%u_max
-  write(output_unit, '(a,g14.6)') '# v_min     = ', sim_cfg%v_min
-  write(output_unit, '(a,g14.6)') '# v_max     = ', sim_cfg%v_max
-  write(output_unit, '(a,g14.6)') '# du        = ', sim_cfg%du
-  write(output_unit, '(a,g14.6)') '# dv        = ', sim_cfg%dv
-  write(output_unit, '(a,g14.6)') '# output_du = ', sim_cfg%output_du
-  write(output_unit, '(a,g14.6)') '# output_dv = ', sim_cfg%output_dv
-  write(output_unit, '(a)') '#'
 
   ! Column headers
   write(output_unit, '(a)') '# Columns: u, r, phi, sigma, mass, drdv, Ricci'
 end subroutine write_output_header
+
+!> Write a self-contained namelist capturing the current run configuration
+subroutine write_run_config(out_dir, cfg, sim_cfg)
+  character(len=*), intent(in)       :: out_dir
+  type(physics_config), intent(in)   :: cfg
+  type(simulation_config), intent(in) :: sim_cfg
+  integer :: unit, ierr
+
+  namelist /physics/ cfg
+  namelist /simulation/ sim_cfg
+
+  open(newunit=unit, file=trim(out_dir)//'/run_params.nml', status='replace', iostat=ierr)
+  if (ierr /= 0) error stop 'write_run_config: could not open run_params.nml'
+
+  write(unit, nml=physics)
+  write(unit, nml=simulation)
+  close(unit)
+end subroutine write_run_config
 
 !> Open diagnostics output file and write header
 subroutine open_diagnostics(out_dir, cfg, sim_cfg)
@@ -270,7 +265,7 @@ subroutine open_diagnostics(out_dir, cfg, sim_cfg)
   if (diag_open) call close_diagnostics()
 
   open(newunit=diag_unit, file=trim(out_dir)//'/data.dat', status='replace')
-  call write_output_header(diag_unit, cfg, sim_cfg)
+  call write_output_header(diag_unit)
   diag_open = .true.
 end subroutine open_diagnostics
 

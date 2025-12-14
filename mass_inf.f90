@@ -65,7 +65,7 @@ program mass_inflation
   call read_simulation_config_from_file(sim_cfg, param_file)
   call read_physics_config_from_file(cfg, param_file)
 
-  ! Build output directory, honoring base dir from sim_cfg.
+  ! Build output directory, with base dir from sim_cfg.
   ! Note: if, for some reason, we ever want to run in windows, this needs to be adapted.
   if (len_trim(sim_cfg%output_base_dir) > 0) then
     out_dir = trim(sim_cfg%output_base_dir) // '/' // trim(out_dir)
@@ -74,6 +74,8 @@ program mass_inflation
       call execute_command_line('mkdir -p ' // trim(out_dir))
   end if
 
+  ! Write run configuration to output directory
+  call write_run_config(out_dir, cfg, sim_cfg)
 
   call startup()
 
