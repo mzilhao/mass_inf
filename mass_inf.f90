@@ -30,21 +30,38 @@ program mass_inflation
   integer, parameter :: N_PICARD_ITERATIONS = 4
   integer, parameter :: N_INTERP_POINTS = 5
   double precision, dimension(N_INTERP_POINTS) :: interp_x, interp_y
-  character(len=256) :: param_file = 'params.nml'
+  character(len=256) :: param_file
   logical :: param_file_exists
+  integer :: num_args, iostat
+  character(len=256) :: arg, prog_name
 
-  ! Check if parameter file exists and read config
-  inquire(file=param_file, exist=param_file_exists)
-  if (param_file_exists) then
-    call read_physics_config_from_file(cfg, param_file)
-    call read_simulation_config_from_file(sim_cfg, param_file)
-  else
-    write(*, '(a,a,a)') 'Warning: parameter file "', trim(param_file), '" not found. Using defaults.'
+  ! Parse command line arguments
+  call get_command_argument(0, prog_name)
+  num_args = command_argument_count()
+  if (num_args == 0) then
+    ! No arguments: use defaults
+    write(*, '(a)') 'Warning: No parameter file specified. Using defaults.'
+    write(*, '(a)') ''
     cfg = physics_config()
     call init_physics_config(cfg)
     sim_cfg = simulation_config()
     call compute_grid_dimensions(sim_cfg)
+  else if (num_args == 1) then
+    ! One argument: read parameter file
+    call get_command_argument(1, arg)
+    param_file = trim(arg)
+    inquire(file=param_file, exist=param_file_exists)
+    if (.not. param_file_exists) then
+      write(*, '(a,a,a)') 'Error: parameter file "', trim(param_file), '" not found.'
+      call exit(1)
+    end if
+    call read_physics_config_from_file(cfg, param_file)
+    call read_simulation_config_from_file(sim_cfg, param_file)
+  else
+    write(*, '(a,a,a)') 'Error: too many arguments. Usage: ', trim(prog_name), ' [parameter_file.nml]'
+    call exit(1)
   end if
+
   neq = cfg%neq
 
   call startup()
