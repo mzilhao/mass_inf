@@ -9,6 +9,7 @@ module physics_config_mod
     double precision :: A = 0.0d0               ! Scalar field amplitude
     double precision :: Delta = 1.0d0           ! Scalar field width
     double precision :: q = 0.95d0              ! Electric charge
+    double precision :: m0 = 1.0d0              ! Initial mass parameter
 
     double precision :: q2 = 0.0d0, qq2 = 0.0d0, qq = 0.0d0  ! Derived constants, dummy values
   end type physics_config
@@ -43,8 +44,8 @@ subroutine read_physics_config_from_file(cfg, filename)
 
   ! Local variables for namelist reading
   integer :: D
-  double precision :: lambda, A, Delta, q
-  namelist /physics/ D, lambda, A, Delta, q
+  double precision :: lambda, A, Delta, q, m0
+  namelist /physics/ D, lambda, A, Delta, q, m0
 
   integer :: unit, ierr
 
@@ -55,6 +56,7 @@ subroutine read_physics_config_from_file(cfg, filename)
   A      = cfg%A
   Delta  = cfg%Delta
   q      = cfg%q
+  m0     = cfg%m0
 
   ! Read namelist
   open(newunit=unit, file=filename, status='old', action='read', iostat=ierr)
@@ -74,6 +76,7 @@ subroutine read_physics_config_from_file(cfg, filename)
   cfg%A      = A
   cfg%Delta  = Delta
   cfg%q      = q
+  cfg%m0     = m0
 
   ! Compute derived constants
   call init_physics_config(cfg)
@@ -162,11 +165,12 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
   logical :: scalarfield
 
   ! Extract config values
-  D = cfg%D
+  D      = cfg%D
   lambda = cfg%lambda
-  q2 = cfg%q2
-  A = cfg%A
-  Delta = cfg%Delta
+  q2     = cfg%q2
+  A      = cfg%A
+  Delta  = cfg%Delta
+  m0     = cfg%m0
 
   ! Allocate boundary condition arrays
   allocate(h_u0(sim_cfg%Nv, cfg%neq))
@@ -177,7 +181,6 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
   ! Initial condition parameters
   r00 = sim_cfg%v_min
   sigma_0 = -0.5d0 * log(2.0d0)
-  m0 = sim_cfg%m0
   ru0 = 0.25d0 * (2.0d0 / (r00**(D-3)) * (m0 - q2/(2.0d0*r00**(D-3))) &
        - 1.0d0 + lambda * r00 * r00 / 3.0d0)
 

@@ -29,10 +29,6 @@ module simulation_config_mod
     integer :: progress_stride = 100
     integer :: progress_header_stride = 5000
 
-    ! FIXME: move to physics config?
-    ! Initial conditions
-    double precision :: m0 = 1.0d0                     ! Initial mass parameter
-
     ! Derived values (dummy initializations, to be computed later)
     integer :: Nu = 0, Nv = 0                          ! Number of grid points
     integer :: Nu_max = 0                              ! Maximum u-arrays allocation size
@@ -49,11 +45,11 @@ subroutine read_simulation_config_from_file(sim_cfg, filename)
 
   ! Local variables for namelist reading
   double precision :: u_min, v_min, u_max, v_max, du, dv, reldiff_max
-  double precision :: output_du, output_dv, m0
+  double precision :: output_du, output_dv
   logical :: AMR
   integer :: progress_stride, progress_header_stride
   namelist /simulation/ u_min, v_min, u_max, v_max, du, dv, AMR, reldiff_max, &
-                        output_du, output_dv, progress_stride, progress_header_stride, m0
+                        output_du, output_dv, progress_stride, progress_header_stride
 
   integer :: unit, ierr
 
@@ -71,8 +67,6 @@ subroutine read_simulation_config_from_file(sim_cfg, filename)
   output_dv = sim_cfg%output_dv
   progress_stride        = sim_cfg%progress_stride
   progress_header_stride = sim_cfg%progress_header_stride
-
-  m0 = sim_cfg%m0
 
   ! Read namelist
   open(newunit=unit, file=filename, status='old', action='read', iostat=ierr)
@@ -99,8 +93,6 @@ subroutine read_simulation_config_from_file(sim_cfg, filename)
   sim_cfg%output_dv = output_dv
   sim_cfg%progress_stride = progress_stride
   sim_cfg%progress_header_stride = progress_header_stride
-
-  sim_cfg%m0 = m0
 
   ! Compute derived grid dimensions
   call compute_grid_dimensions(sim_cfg)
