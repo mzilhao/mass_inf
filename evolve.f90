@@ -3,6 +3,7 @@
 module evolve_wrapper
   use pde_stepper, only: pde_step
   use physics_config_mod
+  use functions, only: F, NEQ
   implicit none
   private
   public :: step
@@ -41,7 +42,6 @@ end subroutine step
 
 !> RHS wrapper that accesses physics config from module scope
 subroutine rhs_wrapper(dhduv, h, dhdu, dhdv, neq)
-  use functions, only: F
   integer, intent(in) :: neq
   double precision, dimension(neq), intent(out) :: dhduv
   double precision, dimension(neq), intent(in)  :: h, dhdu, dhdv

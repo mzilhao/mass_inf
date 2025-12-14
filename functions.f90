@@ -1,8 +1,6 @@
 module physics_config_mod
   implicit none
 
-  integer, parameter :: NEQ = 3  ! Number of equations
-
   !> Physics configuration type - encapsulates all physics parameters
   type :: physics_config
     integer :: D = 4                            ! Spacetime dimension
@@ -22,9 +20,11 @@ module functions
   use simulation_config_mod
   implicit none
   double precision, parameter :: PI = 4.0d0 * atan(1.0d0)
+  integer, parameter :: NEQ = 3      ! Number of equations/fields: r, phi, sigma
   private
   public :: F, init_physics_config, read_physics_config_from_file, init_cond
   public :: compute_diagnostics, write_output, write_output_header
+  public :: NEQ
 
 contains
 
