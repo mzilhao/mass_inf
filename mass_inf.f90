@@ -10,7 +10,6 @@ program mass_inflation
   ! Physics and simulation configuration
   type(physics_config)    :: cfg
   type(simulation_config) :: sim_cfg
-  integer                 :: output_unit
   double precision        :: u_cur, v_cur, reldiff_r = 0.0d0
 
   double precision, allocatable, dimension(:,:) :: h_u0, h_v0
@@ -24,7 +23,6 @@ program mass_inflation
   integer          :: Nv, Nu, Nu_max
 
   integer :: i, j, k, jm1, jm2, jm3, jp1, next_idx
-  character(len=256) :: filename
   character(len=256) :: out_dir
 
   ! Named constants for clarity
@@ -90,10 +88,8 @@ program mass_inflation
   Nv     = sim_cfg%Nv
   Nu_max = sim_cfg%Nu_max
 
-  ! Open file for output
-  filename = trim(out_dir) // '/data.dat'
-  open(newunit=output_unit, file=filename, status='replace')
-  call write_output_header(output_unit, cfg, sim_cfg)
+  ! Open output files
+  call open_diagnostics(out_dir, cfg, sim_cfg)
 
   ! Initialize boundary conditions (returns allocated h_u0, h_v0)
   call init_cond(h_u0, h_v0, sim_cfg, cfg)
@@ -198,7 +194,7 @@ program mass_inflation
       call step(h_N, h_S, h_E, h_W, du, dv, cfg, N_PICARD_ITERATIONS)
       h_v1(j, :) = h_N(:)
 
-      call write_output(output_unit, u_cur, v_cur, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
+      call write_output(u_cur, v_cur, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
 
       j = plus(j)
       u_cur = u_cur + du
@@ -213,7 +209,8 @@ program mass_inflation
     v_cur = v_cur + dv
   end do
 
-  close(output_unit)
+  ! Close output files
+  call close_diagnostics()
 
   deallocate(h_u0, h_v0, u, minus, plus, h_v1)
 

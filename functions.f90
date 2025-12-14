@@ -21,9 +21,12 @@ module functions
   implicit none
   double precision, parameter :: PI = 4.0d0 * atan(1.0d0)
   integer, parameter :: NEQ = 3      ! Number of equations/fields: r, phi, sigma
+  integer, save :: diag_unit = -1
+  logical, save :: diag_open = .false.
   private
   public :: F, init_physics_config, read_physics_config_from_file, init_cond
   public :: compute_diagnostics, write_output, write_output_header
+  public :: open_diagnostics, close_diagnostics
   public :: NEQ
 
 contains
@@ -258,13 +261,34 @@ subroutine write_output_header(output_unit, cfg, sim_cfg)
   write(output_unit, '(a)') '# Columns: u, r, phi, sigma, mass, drdv, Ricci'
 end subroutine write_output_header
 
+!> Open diagnostics output file and write header
+subroutine open_diagnostics(out_dir, cfg, sim_cfg)
+  character(len=*), intent(in)      :: out_dir
+  type(physics_config), intent(in)  :: cfg
+  type(simulation_config), intent(in) :: sim_cfg
+
+  if (diag_open) call close_diagnostics()
+
+  open(newunit=diag_unit, file=trim(out_dir)//'/data.dat', status='replace')
+  call write_output_header(diag_unit, cfg, sim_cfg)
+  diag_open = .true.
+end subroutine open_diagnostics
+
+!> Close diagnostics output file if open
+subroutine close_diagnostics()
+  if (diag_open .and. diag_unit > 0) then
+    close(diag_unit)
+  end if
+  diag_unit = -1
+  diag_open = .false.
+end subroutine close_diagnostics
+
 !====================================================================================
 !> Compute diagnostics and write them if output cadence is met
 !!
 !! Writes columnar ASCII output: u, r, phi, sigma, mass, drdv, Ricci
 !! v-slices are marked with comment lines: # v = X.XXXXX
-subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
-  integer, intent(in)                 :: output_unit
+subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
   double precision, intent(in)        :: u_val, v_val, du, dv
   double precision, dimension(:), intent(in) :: h_N, h_S, h_E, h_W
   type(simulation_config), intent(in) :: sim_cfg
@@ -276,6 +300,8 @@ subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, s
   double precision :: u_P, v_P, mass, drdv, ricci
 
   double precision, save :: last_v_marked_val = -1.0d99
+
+  if (.not. diag_open) error stop 'write_output: diagnostics file not open'
 
   ! Check output condition first, before doing any work
   ! Output condition: write when current (u,v) aligns with sampling spacings.
@@ -303,8 +329,8 @@ subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, s
 
   ! Write a new v-slice block if v_val is more than one half output_dv away from last marked
   if (abs(v_val - last_v_marked_val) > 0.5d0 * sim_cfg%output_dv) then
-    write(output_unit, '(a)')
-    write(output_unit, '(a,f10.6)') '# v = ', v_P
+    write(diag_unit, '(a)')
+    write(diag_unit, '(a,f10.6)') '# v = ', v_P
     last_v_marked_val = v_val
   end if
 
@@ -316,7 +342,8 @@ subroutine write_output(output_unit, u_val, v_val, h_N, h_S, h_E, h_W, du, dv, s
   call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, drdv, ricci)
 
   ! Write columnar output: u, r, phi, sigma, mass, drdv, Ricci
-  write(output_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3), mass, drdv, ricci
+
+  write(diag_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3), mass, drdv, ricci
 
 end subroutine write_output
 
