@@ -1,4 +1,5 @@
 program mass_inflation
+  use precision
   use physics_config_mod
   use simulation_config_mod
   use functions
@@ -11,18 +12,17 @@ program mass_inflation
   type(physics_config)    :: cfg
   type(simulation_config) :: sim_cfg
 
-  double precision        :: u_cur, v_cur, reldiff_r = 0.0d0
+  real(dp), allocatable, dimension(:,:) :: h_u0, h_v0
+  integer,  allocatable, dimension(:)   :: plus, minus
+  real(dp), allocatable                 :: u(:)
+  real(dp), allocatable, dimension(:,:) :: h_v1
+  real(dp), dimension(NEQ)              :: h_S, h_E, h_W, h_N
 
-  double precision, allocatable, dimension(:,:) :: h_u0, h_v0
-  integer,          allocatable, dimension(:)   :: plus, minus
-  double precision, allocatable                 :: u(:)
-  double precision, allocatable, dimension(:,:) :: h_v1
-  double precision, dimension(NEQ)              :: h_S, h_E, h_W, h_N
-
-  double precision :: du, dv, u_min, v_min, u_max, v_max
-  double precision :: start_time_cpu
-  integer          :: Nv, Nu, Nu_max
-  integer          :: i, j, k, jm1, jm2, jm3, jp1, next_idx
+  real(dp) :: u_cur, v_cur, reldiff_r = 0.0_dp
+  real(dp) :: du, dv, u_min, v_min, u_max, v_max
+  real(dp) :: start_time_cpu
+  integer  :: Nv, Nu, Nu_max
+  integer  :: i, j, k, jm1, jm2, jm3, jp1, next_idx
 
   integer, parameter :: N_PICARD_ITERATIONS = 4
   integer, parameter :: N_INTERP_POINTS = 5

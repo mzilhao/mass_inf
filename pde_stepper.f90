@@ -1,4 +1,5 @@
 module pde_stepper
+  use precision
   implicit none
   private
   public :: pde_step
@@ -7,9 +8,10 @@ module pde_stepper
   ! Allows any subroutine with this signature to be passed
   abstract interface
     subroutine rhs_interface(dhduv, h, dhdu, dhdv, neq)
+      import :: dp
       integer, intent(in) :: neq
-      double precision, dimension(neq), intent(out) :: dhduv
-      double precision, dimension(neq), intent(in)  :: h, dhdu, dhdv
+      real(dp), dimension(neq), intent(out) :: dhduv
+      real(dp), dimension(neq), intent(in)  :: h, dhdu, dhdv
     end subroutine rhs_interface
   end interface
 
@@ -31,16 +33,16 @@ contains
 !! @param[in]  neq         Number of equations (system size)
 !! @param[in]  n_picard    Number of Picard iterations for refinement (optional, default=1)
 subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, neq, n_picard)
-  double precision, dimension(:), intent(out) :: h_N
-  double precision, dimension(:), intent(in)  :: h_S, h_E, h_W
-  double precision, intent(in)                :: du, dv
+  real(dp), dimension(:), intent(out) :: h_N
+  real(dp), dimension(:), intent(in)  :: h_S, h_E, h_W
+  real(dp), intent(in)                :: du, dv
   procedure(rhs_interface)                    :: rhs_func
   integer, intent(in)                         :: neq
   integer, intent(in), optional               :: n_picard
 
   integer :: j, n_iter
-  double precision :: max_err
-  double precision, dimension(neq) :: h_P, dhdu_P, dhdv_P, dhduv_P, dhduv_P_new
+  real(dp) :: max_err
+  real(dp), dimension(neq) :: h_P, dhdu_P, dhdv_P, dhduv_P, dhduv_P_new
 
   ! Validate input array sizes
   if (size(h_N) /= neq .or. size(h_S) /= neq .or. &
@@ -59,11 +61,11 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, neq, n_picard)
   h_N = h_W + h_E - h_S
 
   ! Evaluate at midpoint P = (u+du/2, v+dv/2)
-  h_P = 0.25d0 * (h_N + h_S + h_E - h_W)
+  h_P = 0.25_dp * (h_N + h_S + h_E - h_W)
 
   ! Compute derivatives at P using centered differences
-  dhdu_P = (h_W - h_S + h_N - h_E) * 0.5d0 / du
-  dhdv_P = (h_E - h_S + h_N - h_W) * 0.5d0 / dv
+  dhdu_P = (h_W - h_S + h_N - h_E) * 0.5_dp / du
+  dhdv_P = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
 
   ! Evaluate RHS at P
   call rhs_func(dhduv_P, h_P, dhdu_P, dhdv_P, neq)
@@ -74,9 +76,9 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, neq, n_picard)
   ! PICARD ITERATIONS: Refine solution
   picard_loop: do j = 1, n_iter
     ! Recompute h_P and derivatives with refined h_N
-    h_P = 0.25d0 * (h_N + h_S + h_E - h_W)
-    dhdu_P = (h_W - h_S + h_N - h_E) * 0.5d0 / du
-    dhdv_P = (h_E - h_S + h_N - h_W) * 0.5d0 / dv
+    h_P = 0.25_dp * (h_N + h_S + h_E - h_W)
+    dhdu_P = (h_W - h_S + h_N - h_E) * 0.5_dp / du
+    dhdv_P = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
 
     ! Re-evaluate RHS at P
     call rhs_func(dhduv_P_new, h_P, dhdu_P, dhdv_P, neq)
@@ -84,7 +86,7 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, neq, n_picard)
     ! Check convergence
     max_err = maxval(abs(dhduv_P_new - dhduv_P))
     ! print *, "Picard iteration ", j, ": max_err = ", max_err
-    if (max_err < 1.0d-8) exit picard_loop
+    if (max_err < 1.0e-8_dp) exit picard_loop
     dhduv_P = dhduv_P_new
 
     ! Update solution

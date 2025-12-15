@@ -1,6 +1,7 @@
 ! Wrapper module to interface with pde_stepper
 
 module evolve_wrapper
+  use precision
   use pde_stepper, only: pde_step
   use physics_config_mod
   use functions, only: F, NEQ

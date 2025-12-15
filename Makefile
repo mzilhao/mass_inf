@@ -46,10 +46,13 @@ $(OBJDIR)/debug_%.o: %.f90 | $(OBJDIR)
 	$(FC) $(FCFLAGS_DEBUG) -J$(OBJDIR) -c -o $@ $<
 
 # Module dependencies
-$(OBJDIR)/functions.o: $(OBJDIR)/simulation_config.o
-$(OBJDIR)/pde_stepper.o: $(OBJDIR)/functions.o
-$(OBJDIR)/evolve.o: $(OBJDIR)/pde_stepper.o $(OBJDIR)/functions.o
-$(OBJDIR)/mass_inf.o: $(OBJDIR)/functions.o $(OBJDIR)/evolve.o $(OBJDIR)/simulation_config.o $(OBJDIR)/polint.o $(OBJDIR)/utils.o
+$(OBJDIR)/simulation_config.o: $(OBJDIR)/precision.o
+$(OBJDIR)/functions.o: $(OBJDIR)/precision.o $(OBJDIR)/simulation_config.o
+$(OBJDIR)/pde_stepper.o: $(OBJDIR)/precision.o $(OBJDIR)/functions.o
+$(OBJDIR)/evolve.o: $(OBJDIR)/precision.o $(OBJDIR)/pde_stepper.o $(OBJDIR)/functions.o
+$(OBJDIR)/mass_inf.o: $(OBJDIR)/precision.o $(OBJDIR)/functions.o $(OBJDIR)/evolve.o $(OBJDIR)/simulation_config.o $(OBJDIR)/polint.o $(OBJDIR)/utils.o
+$(OBJDIR)/utils.o: $(OBJDIR)/precision.o
+$(OBJDIR)/polint.o: $(OBJDIR)/precision.o
 
 $(OBJDIR)/debug_functions.o: $(OBJDIR)/debug_simulation_config.o
 $(OBJDIR)/debug_pde_stepper.o: $(OBJDIR)/debug_functions.o

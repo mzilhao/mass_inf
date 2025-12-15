@@ -1,25 +1,27 @@
 module physics_config_mod
+  use precision
   implicit none
 
   !> Physics configuration type - encapsulates all physics parameters
   type :: physics_config
-    integer :: D = 4                            ! Spacetime dimension
-    double precision :: lambda = 0.0d0          ! Cosmological constant
-    double precision :: A = 0.0d0               ! Scalar field amplitude
-    double precision :: Delta = 1.0d0           ! Scalar field width
-    double precision :: q = 0.95d0              ! Electric charge
-    double precision :: m0 = 1.0d0              ! Initial mass parameter
+    integer  :: D = 4                    ! Spacetime dimension
+    real(dp) :: lambda = 0.0_dp          ! Cosmological constant
+    real(dp) :: A = 0.0_dp               ! Scalar field amplitude
+    real(dp) :: Delta = 1.0_dp           ! Scalar field width
+    real(dp) :: q = 0.95_dp              ! Electric charge
+    real(dp) :: m0 = 1.0_dp              ! Initial mass parameter
 
-    double precision :: q2 = 0.0d0, qq2 = 0.0d0, qq = 0.0d0  ! Derived constants, dummy values
+    real(dp) :: q2 = 0.0_dp, qq2 = 0.0_dp, qq = 0.0_dp  ! Derived constants, dummy values
   end type physics_config
 
 end module physics_config_mod
 
 module functions
+  use precision
   use physics_config_mod
   use simulation_config_mod
   implicit none
-  double precision, parameter :: PI = 4.0d0 * atan(1.0d0)
+  real(dp), parameter :: PI = 4.0_dp * atan(1.0_dp)
   integer, parameter :: NEQ = 3      ! Number of equations/fields: r, phi, sigma
   integer, save :: diag_unit = -1, fields_unit = -1, derivs_unit = -1
   logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
@@ -49,7 +51,7 @@ subroutine read_physics_config_from_file(cfg, filename)
 
   ! Local variables for namelist reading
   integer :: D
-  double precision :: lambda, A, Delta, q, m0
+  real(dp) :: lambda, A, Delta, q, m0
   namelist /physics/ D, lambda, A, Delta, q, m0
 
   integer :: unit, ierr
@@ -93,12 +95,12 @@ end subroutine read_physics_config_from_file
 !> Compute model-dependent diagnostics (mass, Ricci)
 subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, cfg)
   implicit none
-  double precision, intent(out)               :: mass, ricci
-  double precision, dimension(:), intent(in)  :: h, dhdu, dhdv, dhduv
-  type(physics_config), intent(in)            :: cfg
+  real(dp), intent(out)               :: mass, ricci
+  real(dp), dimension(:), intent(in)  :: h, dhdu, dhdv, dhduv
+  type(physics_config), intent(in)    :: cfg
 
   integer :: D
-  double precision :: lambda, q2
+  real(dp) :: lambda, q2
 
   D      = cfg%D
   lambda = cfg%lambda
@@ -121,13 +123,13 @@ end subroutine compute_diagnostics
 subroutine F(dhduv, h, dhdu, dhdv, cfg)
   implicit none
 
-  double precision, dimension(NEQ), intent(out) :: dhduv
-  double precision, dimension(NEQ), intent(in)  :: h, dhdu, dhdv
-  type(physics_config), intent(in) :: cfg
+  real(dp), dimension(NEQ), intent(out) :: dhduv
+  real(dp), dimension(NEQ), intent(in)  :: h, dhdu, dhdv
+  type(physics_config), intent(in)      :: cfg
 
   ! Local copies for readability
   integer :: D
-  double precision :: lambda, qq2
+  real(dp) :: lambda, qq2
 
   ! Extract config values for cleaner code
   D = cfg%D
@@ -155,15 +157,15 @@ end subroutine F
 subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
   implicit none
 
-  double precision, dimension(:,:), intent(inout) :: h_u0, h_v0
-  type(simulation_config), intent(in) :: sim_cfg
-  type(physics_config), intent(in) :: cfg
+  real(dp), dimension(:,:), intent(inout) :: h_u0, h_v0
+  type(simulation_config),  intent(in)    :: sim_cfg
+  type(physics_config), intent(in)        :: cfg
 
   ! Local variables
   integer :: i, D
-  double precision :: u, v, lambda, q2
-  double precision :: r00, sigma_0, m0, ru0, v0, v1
-  double precision :: A, Delta
+  real(dp) :: u, v, lambda, q2
+  real(dp) :: r00, sigma_0, m0, ru0, v0, v1
+  real(dp) :: A, Delta
   logical :: scalarfield
 
   ! Extract config values
@@ -269,17 +271,16 @@ end subroutine close_output_files
 !! Writes ASCII output in columns.
 !! v-slices are marked with comment lines: # v = X.XXXXX
 subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
-  double precision, intent(in)        :: u_val, v_val, du, dv
-  double precision, dimension(:), intent(in) :: h_N, h_S, h_E, h_W
+  real(dp), intent(in)                :: u_val, v_val, du, dv
+  real(dp), dimension(:), intent(in)  :: h_N, h_S, h_E, h_W
   type(simulation_config), intent(in) :: sim_cfg
   type(physics_config),    intent(in) :: cfg
 
-  double precision :: temp
-  logical :: u_ok, v_ok
-  double precision, dimension(NEQ) :: h_P, dhdu_P, dhdv_P, dhduv_P
-  double precision :: u_P, v_P, mass, ricci
+  real(dp), dimension(NEQ) :: h_P, dhdu_P, dhdv_P, dhduv_P
+  logical  :: u_ok, v_ok
+  real(dp) :: temp, u_P, v_P, mass, ricci
 
-  double precision, save :: last_v_marked_val = -1.0d99
+  real(dp), save :: last_v_marked_val = -1.0e99_dp
 
   if (.not. (fields_open .and. diag_open .and. derivs_open)) error stop 'write_output: output files not open'
 
@@ -287,16 +288,16 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
   ! Output condition: write when current (u,v) aligns with sampling spacings.
   ! We check if (u - u_min)/output_du and (v - v_min)/output_dv are near integers.
   ! This is robust to floating-point drift and local AMR changes.
-  if (sim_cfg%output_du > 0.0d0) then
+  if (sim_cfg%output_du > 0.0_dp) then
     temp = abs((u_val - sim_cfg%u_min) / sim_cfg%output_du)
-    u_ok = abs(temp - nint(temp)) < 1.0d-7
+    u_ok = abs(temp - nint(temp)) < 1.0e-7_dp
   else
     u_ok = .true.
   end if
 
-  if (sim_cfg%output_dv > 0.0d0) then
+  if (sim_cfg%output_dv > 0.0_dp) then
     temp = abs((v_val - sim_cfg%v_min) / sim_cfg%output_dv)
-    v_ok = abs(temp - nint(temp)) < 1.0d-6
+    v_ok = abs(temp - nint(temp)) < 1.0e-6_dp
   else
     v_ok = .true.
   end if
@@ -304,11 +305,11 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
   if (.not. (u_ok .and. v_ok)) return
 
   ! The diagnostics are computed at the midpoint P = (u+du/2, v+dv/2)
-  u_P = u_val + 0.5d0 * du
-  v_P = v_val + 0.5d0 * dv
+  u_P = u_val + 0.5_dp * du
+  v_P = v_val + 0.5_dp * dv
 
   ! Write a new v-slice block if v_val is more than one half output_dv away from last marked
-  if (abs(v_val - last_v_marked_val) > 0.5d0 * sim_cfg%output_dv) then
+  if (abs(v_val - last_v_marked_val) > 0.5_dp * sim_cfg%output_dv) then
     write(fields_unit, '(a)')
     write(fields_unit, '(a,f10.6)') '# v = ', v_P
     write(diag_unit,   '(a)')
@@ -318,9 +319,9 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
     last_v_marked_val = v_val
   end if
 
-  h_P     = 0.25d0 * (h_N + h_S + h_E - h_W)
-  dhdu_P  = (h_W - h_S + h_N - h_E) * 0.5d0 / du
-  dhdv_P  = (h_E - h_S + h_N - h_W) * 0.5d0 / dv
+  h_P     = 0.25_dp * (h_N + h_S + h_E - h_W)
+  dhdu_P  = (h_W - h_S + h_N - h_E) * 0.5_dp / du
+  dhdv_P  = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
 
   call F(dhduv_P, h_P, dhdu_P, dhdv_P, cfg)
   call compute_diagnostics(mass, ricci, h_P, dhdu_P, dhdv_P, dhduv_P, cfg)

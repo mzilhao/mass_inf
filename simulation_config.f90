@@ -5,25 +5,26 @@
 !! the numerical solver infrastructure constant.
 
 module simulation_config_mod
+  use precision
   implicit none
 
   !> Numerical simulation configuration type
   !! Stores all grid, integration, and AMR parameters
   type :: simulation_config
     ! Integration domain bounds
-    double precision :: u_min = 0.0d0, v_min = 5.0d0   ! Domain start
-    double precision :: u_max = 30.0d0, v_max = 10.0d0 ! Domain end
+    real(dp) :: u_min = 0.0_dp, v_min = 5.0_dp   ! Domain start
+    real(dp) :: u_max = 30.0_dp, v_max = 10.0_dp ! Domain end
 
     ! Integration step sizes
-    double precision :: du = 0.01d0, dv = 0.0005d0     ! Step sizes in u, v directions
+    real(dp) :: du = 0.01_dp, dv = 0.0005_dp     ! Step sizes in u, v directions
 
     ! AMR (Adaptive Mesh Refinement) parameters
     logical :: AMR = .true.                            ! Enable AMR
-    double precision :: reldiff_max = 0.0001d0         ! Thresholds for refinement
+    real(dp) :: reldiff_max = 0.0001_dp         ! Thresholds for refinement
 
     ! Output sampling spacing (absolute values in domain units)
-    double precision :: output_du = 0.05d0             ! Write every this Δu
-    double precision :: output_dv = 0.05d0             ! Write every this Δv
+    real(dp) :: output_du = 0.05_dp             ! Write every this Δu
+    real(dp) :: output_dv = 0.05_dp             ! Write every this Δv
     character(len=256) :: output_base_dir = ''         ! Base dir under which run folder is created ('' = CWD)
 
     ! Progress reporting cadence (stdout)
@@ -45,8 +46,8 @@ subroutine read_simulation_config_from_file(sim_cfg, filename)
   character(len=*), intent(in)         :: filename
 
   ! Local variables for namelist reading
-  double precision :: u_min, v_min, u_max, v_max, du, dv, reldiff_max
-  double precision :: output_du, output_dv
+  real(dp) :: u_min, v_min, u_max, v_max, du, dv, reldiff_max
+  real(dp) :: output_du, output_dv
   character(len=256) :: output_base_dir
   logical :: AMR
   integer :: progress_stride, progress_header_stride
@@ -109,9 +110,9 @@ end subroutine read_simulation_config_from_file
 !> Compute derived grid dimensions from domain and step sizes
 subroutine compute_grid_dimensions(sim_cfg)
   type(simulation_config), intent(inout) :: sim_cfg
-  sim_cfg%Nu = int((sim_cfg%u_max - sim_cfg%u_min) / sim_cfg%du + 1.001d0)
-  sim_cfg%Nv = int((sim_cfg%v_max - sim_cfg%v_min) / sim_cfg%dv + 1.001d0)
-  sim_cfg%Nu_max = int(2.0d0 * (sim_cfg%u_max - sim_cfg%u_min) / sim_cfg%reldiff_max)
+  sim_cfg%Nu = int((sim_cfg%u_max - sim_cfg%u_min) / sim_cfg%du + 1.001_dp)
+  sim_cfg%Nv = int((sim_cfg%v_max - sim_cfg%v_min) / sim_cfg%dv + 1.001_dp)
+  sim_cfg%Nu_max = int(2.0_dp * (sim_cfg%u_max - sim_cfg%u_min) / sim_cfg%reldiff_max)
 end subroutine compute_grid_dimensions
 
 end module simulation_config_mod
