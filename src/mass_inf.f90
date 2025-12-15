@@ -2,7 +2,7 @@ program mass_inflation
   use precision
   use model_config_mod
   use grid_config_mod
-  use rnld_model
+  use model_mod
   use evolve_wrapper, only: step
   use polint_mod
   use utils
