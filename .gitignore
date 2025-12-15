@@ -17,11 +17,7 @@ obj/
 *.prof
 
 # Test outputs (temporary files, not reference data)
-test/output_data.dat
-test/*.out
-
-# Simulation output (regenerated each run)
-data.dat
+TESTING/
 
 # Editor/OS cruft
 *~

@@ -4,9 +4,9 @@
 #
 # This script runs the simulation and compares output against reference data
 # using numerical tolerances appropriate for floating-point computation.
-#
+# Pass --save-reference to regenerate reference outputs for all cases.
 
-set -e  # Exit on error
+set -u  # Treat unset vars as error
 
 # Activate conda environment if available
 if command -v conda &> /dev/null; then
@@ -14,22 +14,27 @@ if command -v conda &> /dev/null; then
     conda activate numpy 2>/dev/null || true
 fi
 
-# Configuration
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJ_DIR="$(dirname "$TEST_DIR")"
 BIN_DIR="$PROJ_DIR/bin"
 EXECUTABLE="$BIN_DIR/mass_inf"
+OUT_ROOT="$PROJ_DIR/TESTING"
 
-REFERENCE_FILE="$TEST_DIR/reference_data.dat"
-OUTPUT_FILE="$TEST_DIR/output_data.dat"
-DATA_FILE="$PROJ_DIR/data.dat"
+# Mode: normal compare (default) or save references
+SAVE_REFERENCE=0
+if [ "${1-}" = "--save-reference" ]; then
+    SAVE_REFERENCE=1
+    shift
+fi
 
 # Numerical tolerances
 RTOL="1e-5"  # Relative tolerance (0.001%)
 ATOL="2e-8"  # Absolute tolerance
 
-# Column names for better reporting (avoid bash special var COLUMNS)
-COLUMN_NAMES="u v r phi sigma mass drdv Ricci"
+# Column names for reporting (match current outputs)
+COLUMNS_FIELDS="u r phi sigma"
+COLUMNS_DERIVS="u dr_du dr_dv"
+COLUMNS_DIAG="u mass ricci"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -49,69 +54,122 @@ if [ ! -f "$EXECUTABLE" ]; then
     exit 1
 fi
 
-# Check if reference data exists
-if [ ! -f "$REFERENCE_FILE" ]; then
-    echo -e "${YELLOW}Warning: No reference data found.${NC}"
-    echo "This appears to be the first run. Creating reference data..."
-    echo
-    
-    # Run simulation
-    cd "$PROJ_DIR"
-    "$EXECUTABLE" > /dev/null 2>&1
-    
-    # Copy data.dat to reference
-    if [ -f "$DATA_FILE" ]; then
-        cp "$DATA_FILE" "$REFERENCE_FILE"
-        echo -e "${GREEN}✓ Reference data saved to: $REFERENCE_FILE${NC}"
-        echo
-        echo "You can now make changes and run this test again to validate."
-        exit 0
-    else
-        echo -e "${RED}Error: Simulation did not produce data.dat${NC}"
-        exit 1
+# Helper to compare two files with column labels
+compare_file() {
+    local ref_file="$1"
+    local out_file="$2"
+    local columns="$3"
+    python3 "$TEST_DIR/compare_numerical.py" "$ref_file" "$out_file" --rtol "$RTOL" --atol "$ATOL" --columns $columns
+}
+
+# Discover test cases: any *.nml in test directory root
+shopt -s nullglob
+cases=()
+for cfg in "$TEST_DIR"/*.nml; do
+    cases+=("$cfg")
+done
+shopt -u nullglob
+
+if [ ${#cases[@]} -eq 0 ]; then
+    echo -e "${YELLOW}No test configurations (*.nml) found in $TEST_DIR${NC}"
+    exit 0
+fi
+
+overall_status=0
+
+for cfg in "${cases[@]}"; do
+    case_name="$(basename "$cfg" .nml)"
+    ref_dir="$TEST_DIR/$case_name"
+    out_dir="$OUT_ROOT/$case_name"
+
+    echo "------------------------------------------"
+    echo "Test case: $case_name"
+    echo "Config:    $cfg"
+    echo "Ref dir:   $ref_dir"
+    echo "Out dir:   $out_dir"
+
+    # Prepare output root
+    mkdir -p "$OUT_ROOT"
+    # Clean previous output
+    rm -rf "$out_dir"
+
+    echo "Running simulation..."
+    if ! (cd "$OUT_ROOT" && "$EXECUTABLE" "$cfg" > /dev/null 2>&1); then
+        echo -e "${RED}Execution failed for $case_name${NC}"
+        overall_status=1
+        continue
     fi
-fi
 
-# Run the simulation
-echo "Running simulation..."
-cd "$PROJ_DIR"
-"$EXECUTABLE" > /dev/null 2>&1
+    # Verify outputs
+    missing=0
+    for f in fields.dat derivatives.dat diagnostics.dat; do
+        if [ ! -f "$out_dir/$f" ]; then
+            echo -e "${RED}Missing output file: $out_dir/$f${NC}"
+            missing=1
+        fi
+    done
+    if [ "$missing" -ne 0 ]; then
+        overall_status=1
+        continue
+    fi
 
-# Check if output was created
-if [ ! -f "$DATA_FILE" ]; then
-    echo -e "${RED}Error: Simulation did not produce data.dat${NC}"
-    exit 1
-fi
+    if [ "$SAVE_REFERENCE" -eq 1 ]; then
+        mkdir -p "$ref_dir"
+        cp "$out_dir/fields.dat" "$ref_dir/fields.dat"
+        cp "$out_dir/derivatives.dat" "$ref_dir/derivatives.dat"
+        cp "$out_dir/diagnostics.dat" "$ref_dir/diagnostics.dat"
+        echo -e "${GREEN}✓ Reference updated: $case_name${NC}"
+        continue
+    fi
 
-# Copy to test directory for comparison
-cp "$DATA_FILE" "$OUTPUT_FILE"
+    # Ensure reference directory exists with expected files
+    if [ ! -d "$ref_dir" ]; then
+        echo -e "${RED}Missing reference directory: $ref_dir${NC}"
+        overall_status=1
+        continue
+    fi
+    missing_ref=0
+    for f in fields.dat derivatives.dat diagnostics.dat; do
+        if [ ! -f "$ref_dir/$f" ]; then
+            echo -e "${RED}Missing reference file: $ref_dir/$f${NC}"
+            missing_ref=1
+        fi
+    done
+    if [ "$missing_ref" -ne 0 ]; then
+        overall_status=1
+        continue
+    fi
 
-echo -e "${GREEN}✓ Simulation completed${NC}"
+    echo "Comparing outputs..."
+    status_case=0
+    if ! compare_file "$ref_dir/fields.dat" "$out_dir/fields.dat" "$COLUMNS_FIELDS"; then
+        status_case=1
+    fi
+    if ! compare_file "$ref_dir/derivatives.dat" "$out_dir/derivatives.dat" "$COLUMNS_DERIVS"; then
+        status_case=1
+    fi
+    if ! compare_file "$ref_dir/diagnostics.dat" "$out_dir/diagnostics.dat" "$COLUMNS_DIAG"; then
+        status_case=1
+    fi
+
+    if [ "$status_case" -eq 0 ]; then
+        echo -e "${GREEN}✓ Test passed: $case_name${NC}"
+    else
+        echo -e "${RED}✗ Test failed: $case_name${NC}"
+        overall_status=1
+    fi
+done
+
 echo
-
-# Run numerical comparison
-echo "Comparing output with reference data..."
-echo "  Relative tolerance: $RTOL"
-echo "  Absolute tolerance: $ATOL"
-echo
-
-if python3 "$TEST_DIR/compare_numerical.py" \
-    "$REFERENCE_FILE" "$OUTPUT_FILE" \
-    --rtol "$RTOL" --atol "$ATOL" \
-    --columns $COLUMN_NAMES; then
-    
-    echo
+if [ "$overall_status" -eq 0 ]; then
     echo -e "${GREEN}=========================================="
     echo -e "  ALL TESTS PASSED"
     echo -e "==========================================${NC}"
     exit 0
 else
-    echo
     echo -e "${RED}=========================================="
     echo -e "  TESTS FAILED"
     echo -e "==========================================${NC}"
-    echo
-    echo "If the changes are intentional, update reference data with:"
-    echo "  cp test/output_data.dat test/reference_data.dat"
+    echo "Update reference outputs if changes are expected."
     exit 1
 fi

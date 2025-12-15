@@ -67,6 +67,7 @@ clean:
 # Full cleanup
 distclean: clean
 	rm -f data.dat timing.log gprof.txt
+	rm -rf TESTING
 
 # Run tests
 test: all
@@ -74,10 +75,8 @@ test: all
 
 # Save reference data
 test-save-reference: all
-	@echo "Saving current output as reference data..."
-	@$(BINDIR)/mass_inf > /dev/null 2>&1
-	@cp data.dat test/reference_data.dat
-	@echo "✓ Reference data saved to test/reference_data.dat"
+	@echo "Saving current outputs as references for all test cases..."
+	@bash test/run_tests.sh --save-reference
 
 # Help
 help:

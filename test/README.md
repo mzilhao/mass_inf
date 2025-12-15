@@ -3,27 +3,32 @@
 ## Quick Start
 
 ```bash
-# Run tests (compares data.dat against reference)
+# Run all regression cases (one .nml per case in this folder)
 make test
 
-# Save current output as new reference (after validating changes)
+# Regenerate references for all cases (after validating changes)
 make test-save-reference
 ```
 
-## Files
+## Layout
 
-- `reference_data.dat` - Golden reference data (120,000 rows × 8 columns)
-- `compare_numerical.py` - Python tool for numerical comparison with tolerances
-- `run_tests.sh` - Test orchestration script
+- Each test case has:
+  - A config file in this folder, e.g., `D4_config00.nml`
+  - A reference folder with the same basename, e.g., `D4_config00/`, containing:
+    - `fields.dat`       (u, r, phi, sigma)
+    - `derivatives.dat`  (u, dr/du, dr/dv)
+    - `diagnostics.dat`  (u, mass, Ricci)
+- `compare_numerical.py` - Numerical comparator with tolerances
+- `run_tests.sh` - Orchestrates builds, runs, and comparisons
 
 ## How It Works
 
-1. Builds optimized binary (`make release`)
-2. Runs simulation → produces `data.dat`
-3. Compares against `reference_data.dat` using:
-   - Relative tolerance: 1e-5 (0.001%)
-   - Absolute tolerance: 1e-8
-4. Reports pass/fail with detailed diagnostics
+1. Builds optimized binary (`make`)
+2. For each `*.nml` in this directory:
+  - Runs the simulation with working dir `TESTING/` (outputs land in `TESTING/<case>/`)
+  - Compares `fields.dat`, `derivatives.dat`, `diagnostics.dat` against the reference set
+  - Uses tolerances: `rtol=1e-5`, `atol=2e-8`
+3. Reports pass/fail with per-case details
 
 ## Legacy Files (Deprecated)
 
