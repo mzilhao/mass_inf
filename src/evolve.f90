@@ -4,7 +4,7 @@ module evolve_wrapper
   use precision
   use pde_stepper, only: pde_step
   use model_config_mod
-  use functions, only: F, NEQ
+  use rnld_model, only: F, NEQ
   implicit none
   private
   public :: step

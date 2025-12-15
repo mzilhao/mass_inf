@@ -16,7 +16,7 @@ module model_config_mod
 
 end module model_config_mod
 
-module functions
+module rnld_model
   use precision
   use model_config_mod
   use grid_config_mod
@@ -333,4 +333,4 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, mode
 
 end subroutine write_output
 
-end module functions
+end module rnld_model
