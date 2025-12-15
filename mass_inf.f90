@@ -17,7 +17,7 @@ program mass_inflation
   integer,          allocatable, dimension(:)   :: plus, minus
   double precision, allocatable                 :: u(:)
   double precision, allocatable, dimension(:,:) :: h_v1
-  double precision, allocatable, dimension(:)   :: h_S, h_E, h_W, h_N
+  double precision, dimension(NEQ)              :: h_S, h_E, h_W, h_N
 
   double precision :: du, dv, u_min, v_min, u_max, v_max
   double precision :: start_time_cpu
@@ -69,7 +69,7 @@ program mass_inflation
     call exit(1)
   end if
 
-  ! Derive output directory name from parameter file (basename without extension)
+  ! Output directory name (parameter file basename without extension)
   out_dir = trim(param_file)
   ! Strip any leading path
   i = index(out_dir, '/', back=.true.)
@@ -99,19 +99,21 @@ program mass_inflation
   ! Open output files
   call open_output_files(out_dir)
 
-  ! Initialize boundary conditions (returns allocated h_u0, h_v0)
-  call init_cond(h_u0, h_v0, sim_cfg, cfg)
-
-  allocate(plus(Nu_max), minus(Nu_max))
-  allocate(u(Nu_max))
+  ! Allocate boundary condition arrays
+  allocate(h_u0(Nv, NEQ))
+  allocate(h_v0(Nu_max, NEQ))
   allocate(h_v1(Nu_max, NEQ))
-  allocate(h_S(NEQ), h_E(NEQ), h_W(NEQ), h_N(NEQ))
+  h_u0 = 0.0d0
+  h_v0 = 0.0d0
+  h_v1 = 0.0d0
 
   ! Array 'u' will hold all values of u on v slices. We start with
   ! a uniform grid, but this may change with AMR. Linked lists 'plus' and 'minus'
   ! help us navigate the non-uniform grid.
+  allocate(u(Nu_max))
+  allocate(plus(Nu_max), minus(Nu_max))
   u = 0.0d0
-  plus = 0
+  plus  = 0
   minus = 0
 
   u_cur = u_min
@@ -123,11 +125,14 @@ program mass_inflation
     minus(j) = j - 1
     plus(j)  = j + 1
   end do
-
   next_idx = Nu + 1
-  v_cur = v_min
 
+
+  ! Initialize boundary conditions
+  call init_cond(h_u0, h_v0, sim_cfg, cfg)
   call cpu_time(start_time_cpu)
+
+  v_cur = v_min
 
   ! Start the main integration loop. i is the step in 'v'; j the step in 'u'.
   ! At each step we assume we are at the point (u,v).

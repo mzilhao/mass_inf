@@ -88,22 +88,21 @@ subroutine read_physics_config_from_file(cfg, filename)
 
   ! Compute derived constants
   call init_physics_config(cfg)
-
 end subroutine read_physics_config_from_file
 
-!> Compute model-dependent diagnostics (mass, drdv, Ricci)
-subroutine compute_diagnostics(h, dhdu, dhdv, dhduv, cfg, mass, ricci)
+!> Compute model-dependent diagnostics (mass, Ricci)
+subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, cfg)
   implicit none
+  double precision, intent(out)               :: mass, ricci
   double precision, dimension(:), intent(in)  :: h, dhdu, dhdv, dhduv
   type(physics_config), intent(in)            :: cfg
-  double precision,           intent(out)     :: mass, ricci
 
   integer :: D
   double precision :: lambda, q2
 
-  D = cfg%D
+  D      = cfg%D
   lambda = cfg%lambda
-  q2 = cfg%q2
+  q2     = cfg%q2
 
   mass = 0.5d0 * h(1)**(D-3) * ( 1.d0 - lambda/3.d0 * h(1)*h(1)           &
         + q2 / ( (h(1)*h(1))**(D-3) )                                     &
@@ -156,14 +155,14 @@ end subroutine F
 subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
   implicit none
 
-  double precision, dimension(:,:), allocatable, intent(out) :: h_u0, h_v0
-  type(simulation_config), intent(inout) :: sim_cfg
+  double precision, dimension(:,:), intent(inout) :: h_u0, h_v0
+  type(simulation_config), intent(in) :: sim_cfg
   type(physics_config), intent(in) :: cfg
 
   ! Local variables
   integer :: i, D
   double precision :: u, v, lambda, q2
-  double precision :: r00, sigma_0, m0, ru0, v1
+  double precision :: r00, sigma_0, m0, ru0, v0, v1
   double precision :: A, Delta
   logical :: scalarfield
 
@@ -174,45 +173,40 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
   A      = cfg%A
   Delta  = cfg%Delta
   m0     = cfg%m0
-
-  ! Allocate boundary condition arrays
-  allocate(h_u0(sim_cfg%Nv, NEQ))
-  allocate(h_v0(sim_cfg%Nu_max, NEQ))
-  h_u0 = 0.0d0
-  h_v0 = 0.0d0
+  v0     = sim_cfg%v_min
 
   ! Initial condition parameters
-  r00 = sim_cfg%v_min
+  r00 = v0
   sigma_0 = -0.5d0 * log(2.0d0)
   ru0 = 0.25d0 * (2.0d0 / (r00**(D-3)) * (m0 - q2/(2.0d0*r00**(D-3))) &
        - 1.0d0 + lambda * r00 * r00 / 3.0d0)
 
   ! FIXME
   scalarfield = .true.
-  v1 = sim_cfg%v_min + Delta
+  v1 = v0 + Delta
 
   ! Boundary conditions at u = u_min
   do i = 1, sim_cfg%Nv
-    v = sim_cfg%v_min + (i-1) * sim_cfg%dv
+    v = v0 + (i-1) * sim_cfg%dv
     h_u0(i, 1) = v  ! r(u_min,v)
 
     if (scalarfield) then
-      if (v <= sim_cfg%v_min + Delta) then
+      if (v <= v0 + Delta) then
         ! Perturbation phase
-        h_u0(i, 2) = A / (4*Pi) * (2*Pi*(v - sim_cfg%v_min) - Delta * sin(2.0d0*Pi*(v - sim_cfg%v_min)/Delta))
+        h_u0(i, 2) = A / (4*Pi) * (2*Pi*(v - v0) - Delta * sin(2.0d0*Pi*(v - v0)/Delta))
         h_u0(i, 3) = sigma_0 + 2.0d0/(D-2.0d0) * A*A/(256*Pi*Pi) &
-             * (15*sim_cfg%v_min**2 - 24*Pi*Pi*sim_cfg%v_min**2 - 30*sim_cfg%v_min*v1 &
+             * (15*v0**2 - 24*Pi*Pi*v0**2 - 30*v0*v1 &
              + 15*v1**2 + 24*Pi*Pi*v**2 &
-             - 16*Delta**2*cos(2*Pi*(sim_cfg%v_min-v)/Delta) &
-             + Delta**2*cos(4*Pi*(sim_cfg%v_min-v)/Delta) &
-             - 32*Pi*sim_cfg%v_min*v*sin(2*Pi*(sim_cfg%v_min-v)/Delta) &
-             + 32*Pi*v1*v*sin(2*Pi*(sim_cfg%v_min-v)/Delta) &
-             + 4*Pi*sim_cfg%v_min*v*sin(4*Pi*(sim_cfg%v_min-v)/Delta) &
-             - 4*Pi*v1*v*sin(4*Pi*(sim_cfg%v_min-v)/Delta))
+             - 16*Delta**2*cos(2*Pi*(v0-v)/Delta) &
+             + Delta**2*cos(4*Pi*(v0-v)/Delta) &
+             - 32*Pi*v0*v*sin(2*Pi*(v0-v)/Delta) &
+             + 32*Pi*v1*v*sin(2*Pi*(v0-v)/Delta) &
+             + 4*Pi*v0*v*sin(4*Pi*(v0-v)/Delta) &
+             - 4*Pi*v1*v*sin(4*Pi*(v0-v)/Delta))
       else
         ! No perturbation phase
         h_u0(i, 2) = 0.5d0 * A * Delta
-        h_u0(i, 3) = sigma_0 + 2.0d0/(D-2.0d0) * 3*A*A*Delta*(sim_cfg%v_min+v1)/32.0d0
+        h_u0(i, 3) = sigma_0 + 2.0d0/(D-2.0d0) * 3*A*A*Delta*(v0+v1)/32.0d0
       end if
     else
       ! No scalar field
@@ -329,7 +323,7 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
   dhdv_P  = (h_E - h_S + h_N - h_W) * 0.5d0 / dv
 
   call F(dhduv_P, h_P, dhdu_P, dhdv_P, cfg)
-  call compute_diagnostics(h_P, dhdu_P, dhdv_P, dhduv_P, cfg, mass, ricci)
+  call compute_diagnostics(mass, ricci, h_P, dhdu_P, dhdv_P, dhduv_P, cfg)
 
   ! Write columnar output
   write(fields_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3) ! u, r, phi, sigma
@@ -338,6 +332,4 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
 
 end subroutine write_output
 
-
-!====================================================================================
 end module functions
