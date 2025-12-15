@@ -6,13 +6,14 @@ FCFLAGS_PROFILE = -O2 -pg
 LDFLAGS =
 
 # Directories
+SRCDIR = src
 BINDIR = bin
 OBJDIR = obj
 
 # Source files and objects
-SOURCES = $(wildcard *.f90)
-OBJECTS = $(patsubst %.f90,$(OBJDIR)/%.o,$(SOURCES))
-OBJECTS_DEBUG = $(patsubst %.f90,$(OBJDIR)/debug_%.o,$(SOURCES))
+SOURCES = $(wildcard $(SRCDIR)/*.f90)
+OBJECTS = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/%.o,$(SOURCES))
+OBJECTS_DEBUG = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/debug_%.o,$(SOURCES))
 
 # Phony targets
 .PHONY: all debug profile clean distclean test test-save-reference help
@@ -38,11 +39,11 @@ $(BINDIR)/mass_inf-prof: $(OBJECTS) | $(BINDIR)
 	$(FC) $(FCFLAGS_PROFILE) -o $@ $^ -pg
 
 # Compile release objects
-$(OBJDIR)/%.o: %.f90 | $(OBJDIR)
+$(OBJDIR)/%.o: $(SRCDIR)/%.f90 | $(OBJDIR)
 	$(FC) $(FCFLAGS) -J$(OBJDIR) -c -o $@ $<
 
 # Compile debug objects
-$(OBJDIR)/debug_%.o: %.f90 | $(OBJDIR)
+$(OBJDIR)/debug_%.o: $(SRCDIR)/%.f90 | $(OBJDIR)
 	$(FC) $(FCFLAGS_DEBUG) -J$(OBJDIR) -c -o $@ $<
 
 # Module dependencies
