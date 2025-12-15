@@ -6,6 +6,7 @@ program mass_inflation
   use evolve_wrapper, only: step
   use polint_mod
   use utils
+  use amr_mod
   implicit none
 
   ! Physics and simulation configuration
@@ -22,11 +23,10 @@ program mass_inflation
   real(dp) :: du, dv, u_min, v_min, u_max, v_max
   real(dp) :: start_time_cpu
   integer  :: Nv, Nu, Nu_max
-  integer  :: i, j, k, jm1, jm2, jm3, jp1, next_idx
+  integer  :: i, j, k, jm1, next_idx
 
   integer, parameter :: N_PICARD_ITERATIONS = 4
   integer, parameter :: N_INTERP_POINTS = 5
-  double precision, dimension(N_INTERP_POINTS) :: interp_x, interp_y
 
   ! IO and file management
   character(len=256) :: out_dir, param_file, arg, prog_name
@@ -160,46 +160,8 @@ program mass_inflation
       h_S(:) = h_v0(jm1, :)  ! h(u, v)
       h_W(:) = h_v0(j, :)    ! h(u + du, v)
 
-      ! Adaptive Mesh Refinement (AMR) in the 'u' direction. If the relative
-      ! variation in 'r' between points (u, v) and (u + du, v) exceeds the threshold,
-      ! we add a new point halfway between them by interpolating all
-      ! field values using polynomial interpolation.
-      if (sim_cfg%AMR) then
-        reldiff_r = relative_difference(h_W(1), h_S(1))
-
-        ! We keep adding points in u until the gradient in r is small enough
-        do while (reldiff_r > sim_cfg%reldiff_max .and. j >= 4)
-          jm1 = minus(j)
-          jm2 = minus(jm1)
-          jm3 = minus(jm2)
-          jp1 = plus(j)
-
-          do k = 1, NEQ
-            if (u(jp1) < u_max) then
-              interp_x = [ u(1), u(jm2), u(jm1), u(j), u(jp1) ]
-              interp_y = [ h_v0(1,k), h_v0(jm2,k), h_v0(jm1,k), h_v0(j,k), &
-                           h_v0(jp1,k) ]
-            else
-              interp_x = [ u(1), u(jm3), u(jm2), u(jm1), u(j) ]
-              interp_y = [ h_v0(1,k), h_v0(jm3,k), h_v0(jm2,k), h_v0(jm1,k), &
-                           h_v0(j,k) ]
-            end if
-            h_W(k) = polint((u(j) + u(jm1)) * 0.5d0, interp_x, interp_y)
-          end do
-
-          u(next_idx)       = (u(j) + u(jm1)) * 0.5d0
-          h_v0(next_idx, :) = h_W(:)
-
-          minus(next_idx) = jm1
-          plus(next_idx)  = j
-          plus(jm1)       = next_idx
-          minus(j)        = next_idx
-          j               = next_idx
-          next_idx        = next_idx + 1
-
-          reldiff_r = relative_difference(h_W(1), h_S(1))
-        end do
-      end if ! end AMR
+      ! Adaptive Mesh Refinement
+      if (sim_cfg%AMR) call refine_u_grid(u, h_v0, h_W, h_S, j, next_idx, u_max, sim_cfg%reldiff_max, plus, minus)
 
       du = u(j) - u(minus(j))  ! local du may change during AMR
 
