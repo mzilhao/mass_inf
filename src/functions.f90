@@ -1,9 +1,9 @@
-module physics_config_mod
+module model_config_mod
   use precision
   implicit none
 
-  !> Physics configuration type - encapsulates all physics parameters
-  type :: physics_config
+  !> Model configuration type - encapsulates all physics parameters
+  type :: model_config
     integer  :: D = 4                    ! Spacetime dimension
     real(dp) :: lambda = 0.0_dp          ! Cosmological constant
     real(dp) :: A = 0.0_dp               ! Scalar field amplitude
@@ -12,14 +12,14 @@ module physics_config_mod
     real(dp) :: m0 = 1.0_dp              ! Initial mass parameter
 
     real(dp) :: q2 = 0.0_dp, qq2 = 0.0_dp, qq = 0.0_dp  ! Derived constants, dummy values
-  end type physics_config
+  end type model_config
 
-end module physics_config_mod
+end module model_config_mod
 
 module functions
   use precision
-  use physics_config_mod
-  use simulation_config_mod
+  use model_config_mod
+  use grid_config_mod
   implicit none
   real(dp), parameter :: PI = 4.0_dp * atan(1.0_dp)
   integer, parameter :: NEQ = 3      ! Number of equations/fields: r, phi, sigma
@@ -27,7 +27,7 @@ module functions
   logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
 
   private
-  public :: F, init_physics_config, read_physics_config_from_file, init_cond
+  public :: F, init_model_config, read_model_config_from_file, init_cond
   public :: compute_diagnostics, write_output
   public :: open_output_files, close_output_files
   public :: NEQ
@@ -35,18 +35,18 @@ module functions
 contains
 
 !> Initialize physics configuration with derived constants
-subroutine init_physics_config(cfg)
-  type(physics_config), intent(inout) :: cfg
-  cfg%q2 = cfg%q * cfg%q
-  cfg%qq2 = 0.5d0 * cfg%q2 * (cfg%D - 3) * (cfg%D - 2)
-  cfg%qq = sqrt(cfg%qq2)
-end subroutine init_physics_config
+subroutine init_model_config(model_cfg)
+  type(model_config), intent(inout) :: model_cfg
+  model_cfg%q2 = model_cfg%q * model_cfg%q
+  model_cfg%qq2 = 0.5d0 * model_cfg%q2 * (model_cfg%D - 3) * (model_cfg%D - 2)
+  model_cfg%qq = sqrt(model_cfg%qq2)
+end subroutine init_model_config
 
 !> Read physics configuration from a namelist file
 !! Reads &physics namelist and computes derived constants.
 !! Reads from an existing namelist file.
-subroutine read_physics_config_from_file(cfg, filename)
-  type(physics_config), intent(out) :: cfg
+subroutine read_model_config_from_file(model_cfg, filename)
+  type(model_config), intent(out) :: model_cfg
   character(len=*), intent(in)      :: filename
 
   ! Local variables for namelist reading
@@ -57,13 +57,13 @@ subroutine read_physics_config_from_file(cfg, filename)
   integer :: unit, ierr
 
   ! Initialize with type defaults
-  cfg = physics_config()
-  D      = cfg%D
-  lambda = cfg%lambda
-  A      = cfg%A
-  Delta  = cfg%Delta
-  q      = cfg%q
-  m0     = cfg%m0
+  model_cfg = model_config()
+  D      = model_cfg%D
+  lambda = model_cfg%lambda
+  A      = model_cfg%A
+  Delta  = model_cfg%Delta
+  q      = model_cfg%q
+  m0     = model_cfg%m0
 
   ! Read namelist
   open(newunit=unit, file=filename, status='old', action='read', iostat=ierr)
@@ -81,30 +81,30 @@ subroutine read_physics_config_from_file(cfg, filename)
   close(unit)
 
   ! Update cfg with (possibly modified) namelist values
-  cfg%D      = D
-  cfg%lambda = lambda
-  cfg%A      = A
-  cfg%Delta  = Delta
-  cfg%q      = q
-  cfg%m0     = m0
+  model_cfg%D      = D
+  model_cfg%lambda = lambda
+  model_cfg%A      = A
+  model_cfg%Delta  = Delta
+  model_cfg%q      = q
+  model_cfg%m0     = m0
 
   ! Compute derived constants
-  call init_physics_config(cfg)
-end subroutine read_physics_config_from_file
+  call init_model_config(model_cfg)
+end subroutine read_model_config_from_file
 
 !> Compute model-dependent diagnostics (mass, Ricci)
-subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, cfg)
+subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)
   implicit none
   real(dp), intent(out)               :: mass, ricci
   real(dp), dimension(:), intent(in)  :: h, dhdu, dhdv, dhduv
-  type(physics_config), intent(in)    :: cfg
+  type(model_config), intent(in)    :: model_cfg
 
   integer :: D
   real(dp) :: lambda, q2
 
-  D      = cfg%D
-  lambda = cfg%lambda
-  q2     = cfg%q2
+  D      = model_cfg%D
+  lambda = model_cfg%lambda
+  q2     = model_cfg%q2
 
   mass = 0.5d0 * h(1)**(D-3) * ( 1.d0 - lambda/3.d0 * h(1)*h(1)           &
         + q2 / ( (h(1)*h(1))**(D-3) )                                     &
@@ -120,21 +120,21 @@ end subroutine compute_diagnostics
 !> Right-hand side of the PDE system
 !! Inputs: h (field values), dhdu, dhdv (derivatives)
 !! Output: dhduv (mixed derivatives)
-subroutine F(dhduv, h, dhdu, dhdv, cfg)
+subroutine F(dhduv, h, dhdu, dhdv, model_cfg)
   implicit none
 
   real(dp), dimension(NEQ), intent(out) :: dhduv
   real(dp), dimension(NEQ), intent(in)  :: h, dhdu, dhdv
-  type(physics_config), intent(in)      :: cfg
+  type(model_config), intent(in)      :: model_cfg
 
   ! Local copies for readability
   integer :: D
   real(dp) :: lambda, qq2
 
   ! Extract config values for cleaner code
-  D = cfg%D
-  lambda = cfg%lambda
-  qq2 = cfg%qq2
+  D      = model_cfg%D
+  lambda = model_cfg%lambda
+  qq2    = model_cfg%qq2
 
   ! h(1) = r, h(2) = phi, h(3) = sigma
   dhduv(1) = qq2/(D-2) * exp(2*h(3)) / (h(1)**(2*D-5)) &
@@ -154,12 +154,12 @@ end subroutine F
 !====================================================================================
 !> Initialize boundary conditions at u=u_min and v=v_min
 !! Returns: h_u0 (IC along u_min), h_v0 (IC along v_min)
-subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
+subroutine init_cond(h_u0, h_v0, grid_cfg, model_cfg)
   implicit none
 
   real(dp), dimension(:,:), intent(inout) :: h_u0, h_v0
-  type(simulation_config),  intent(in)    :: sim_cfg
-  type(physics_config), intent(in)        :: cfg
+  type(grid_config),  intent(in)          :: grid_cfg
+  type(model_config), intent(in)          :: model_cfg
 
   ! Local variables
   integer :: i, D
@@ -169,13 +169,13 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
   logical :: scalarfield
 
   ! Extract config values
-  D      = cfg%D
-  lambda = cfg%lambda
-  q2     = cfg%q2
-  A      = cfg%A
-  Delta  = cfg%Delta
-  m0     = cfg%m0
-  v0     = sim_cfg%v_min
+  D      = model_cfg%D
+  lambda = model_cfg%lambda
+  q2     = model_cfg%q2
+  A      = model_cfg%A
+  Delta  = model_cfg%Delta
+  m0     = model_cfg%m0
+  v0     = grid_cfg%v_min
 
   ! Initial condition parameters
   r00 = v0
@@ -188,8 +188,8 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
   v1 = v0 + Delta
 
   ! Boundary conditions at u = u_min
-  do i = 1, sim_cfg%Nv
-    v = v0 + (i-1) * sim_cfg%dv
+  do i = 1, grid_cfg%Nv
+    v = v0 + (i-1) * grid_cfg%dv
     h_u0(i, 1) = v  ! r(u_min,v)
 
     if (scalarfield) then
@@ -218,8 +218,8 @@ subroutine init_cond(h_u0, h_v0, sim_cfg, cfg)
   end do
 
   ! Boundary conditions at v = v_min
-  do i = 1, sim_cfg%Nu
-    u = sim_cfg%u_min + (i-1) * sim_cfg%du
+  do i = 1, grid_cfg%Nu
+    u = grid_cfg%u_min + (i-1) * grid_cfg%du
     h_v0(i, 1) = r00 + u * ru0  ! r(u,v_min)
     h_v0(i, 2) = 0.0d0          ! phi(u,v_min)
     h_v0(i, 3) = sigma_0        ! sigma(u,v_min)
@@ -270,11 +270,11 @@ end subroutine close_output_files
 !!
 !! Writes ASCII output in columns.
 !! v-slices are marked with comment lines: # v = X.XXXXX
-subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
+subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, model_cfg)
   real(dp), intent(in)                :: u_val, v_val, du, dv
   real(dp), dimension(:), intent(in)  :: h_N, h_S, h_E, h_W
-  type(simulation_config), intent(in) :: sim_cfg
-  type(physics_config),    intent(in) :: cfg
+  type(grid_config), intent(in)       :: grid_cfg
+  type(model_config),    intent(in)   :: model_cfg
 
   real(dp), dimension(NEQ) :: h_P, dhdu_P, dhdv_P, dhduv_P
   logical  :: u_ok, v_ok
@@ -288,15 +288,15 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
   ! Output condition: write when current (u,v) aligns with sampling spacings.
   ! We check if (u - u_min)/output_du and (v - v_min)/output_dv are near integers.
   ! This is robust to floating-point drift and local AMR changes.
-  if (sim_cfg%output_du > 0.0_dp) then
-    temp = abs((u_val - sim_cfg%u_min) / sim_cfg%output_du)
+  if (grid_cfg%output_du > 0.0_dp) then
+    temp = abs((u_val - grid_cfg%u_min) / grid_cfg%output_du)
     u_ok = abs(temp - nint(temp)) < 1.0e-7_dp
   else
     u_ok = .true.
   end if
 
-  if (sim_cfg%output_dv > 0.0_dp) then
-    temp = abs((v_val - sim_cfg%v_min) / sim_cfg%output_dv)
+  if (grid_cfg%output_dv > 0.0_dp) then
+    temp = abs((v_val - grid_cfg%v_min) / grid_cfg%output_dv)
     v_ok = abs(temp - nint(temp)) < 1.0e-6_dp
   else
     v_ok = .true.
@@ -309,7 +309,7 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
   v_P = v_val + 0.5_dp * dv
 
   ! Write a new v-slice block if v_val is more than one half output_dv away from last marked
-  if (abs(v_val - last_v_marked_val) > 0.5_dp * sim_cfg%output_dv) then
+  if (abs(v_val - last_v_marked_val) > 0.5_dp * grid_cfg%output_dv) then
     write(fields_unit, '(a)')
     write(fields_unit, '(a,f10.6)') '# v = ', v_P
     write(diag_unit,   '(a)')
@@ -323,8 +323,8 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
   dhdu_P  = (h_W - h_S + h_N - h_E) * 0.5_dp / du
   dhdv_P  = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
 
-  call F(dhduv_P, h_P, dhdu_P, dhdv_P, cfg)
-  call compute_diagnostics(mass, ricci, h_P, dhdu_P, dhdv_P, dhduv_P, cfg)
+  call F(dhduv_P, h_P, dhdu_P, dhdv_P, model_cfg)
+  call compute_diagnostics(mass, ricci, h_P, dhdu_P, dhdv_P, dhduv_P, model_cfg)
 
   ! Write columnar output
   write(fields_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3) ! u, r, phi, sigma

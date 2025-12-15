@@ -1,7 +1,7 @@
 program mass_inflation
   use precision
-  use physics_config_mod
-  use simulation_config_mod
+  use model_config_mod
+  use grid_config_mod
   use functions
   use evolve_wrapper, only: step
   use polint_mod
@@ -10,8 +10,8 @@ program mass_inflation
   implicit none
 
   ! Physics and simulation configuration
-  type(physics_config)    :: cfg
-  type(simulation_config) :: sim_cfg
+  type(model_config)    :: model_cfg
+  type(grid_config)     :: grid_cfg
 
   real(dp), allocatable, dimension(:,:) :: h_u0, h_v0
   integer,  allocatable, dimension(:)   :: plus, minus
@@ -79,22 +79,22 @@ program mass_inflation
   if (j > 0) out_dir = out_dir(:j-1)
 
   ! Read simulation and physics configurations
-  call read_simulation_config_from_file(sim_cfg, param_file)
-  call read_physics_config_from_file(cfg, param_file)
+  call read_grid_config_from_file(grid_cfg, param_file)
+  call read_model_config_from_file(model_cfg, param_file)
 
   ! Setup output directory and print startup banner
-  call startup(param_file, out_dir, force_overwrite, sim_cfg%output_base_dir)
+  call startup(param_file, out_dir, force_overwrite, grid_cfg%output_base_dir)
 
   ! Create local aliases for readability
-  du     = sim_cfg%du
-  dv     = sim_cfg%dv
-  u_min  = sim_cfg%u_min
-  v_min  = sim_cfg%v_min
-  u_max  = sim_cfg%u_max
-  v_max  = sim_cfg%v_max
-  Nu     = sim_cfg%Nu
-  Nv     = sim_cfg%Nv
-  Nu_max = sim_cfg%Nu_max
+  du     = grid_cfg%du
+  dv     = grid_cfg%dv
+  u_min  = grid_cfg%u_min
+  v_min  = grid_cfg%v_min
+  u_max  = grid_cfg%u_max
+  v_max  = grid_cfg%v_max
+  Nu     = grid_cfg%Nu
+  Nv     = grid_cfg%Nv
+  Nu_max = grid_cfg%Nu_max
 
   ! Open output files
   call open_output_files(out_dir)
@@ -129,7 +129,7 @@ program mass_inflation
 
 
   ! Initialize boundary conditions
-  call init_cond(h_u0, h_v0, sim_cfg, cfg)
+  call init_cond(h_u0, h_v0, grid_cfg, model_cfg)
   call cpu_time(start_time_cpu)
 
   v_cur = v_min
@@ -139,7 +139,7 @@ program mass_inflation
   do i = 1, Nv - 1
     ! Print progress to stdout (cadence controlled by simulation config)
     call print_status(i, v_cur, v_min, v_max, start_time_cpu, h_v0, next_idx, &
-                      sim_cfg%progress_stride, sim_cfg%progress_header_stride)
+                      grid_cfg%progress_stride, grid_cfg%progress_header_stride)
 
     ! Reset u position each time we advance in v
     u_cur = u_min
@@ -161,15 +161,15 @@ program mass_inflation
       h_W(:) = h_v0(j, :)    ! h(u + du, v)
 
       ! Adaptive Mesh Refinement
-      if (sim_cfg%AMR) call refine_u_grid(u, h_v0, h_W, h_S, j, next_idx, u_max, sim_cfg%reldiff_max, plus, minus)
+      if (grid_cfg%AMR) call refine_u_grid(u, h_v0, h_W, h_S, j, next_idx, u_max, grid_cfg%reldiff_max, plus, minus)
 
       du = u(j) - u(minus(j))  ! local du may change during AMR
 
       ! step returns h_N = h(u + du, v + dv)
-      call step(h_N, h_S, h_E, h_W, du, dv, cfg, N_PICARD_ITERATIONS)
+      call step(h_N, h_S, h_E, h_W, du, dv, model_cfg, N_PICARD_ITERATIONS)
       h_v1(j, :) = h_N(:)
 
-      call write_output(u_cur, v_cur, h_N, h_S, h_E, h_W, du, dv, sim_cfg, cfg)
+      call write_output(u_cur, v_cur, h_N, h_S, h_E, h_W, du, dv, grid_cfg, model_cfg)
 
       j = plus(j)
       u_cur = u_cur + du

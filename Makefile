@@ -47,19 +47,19 @@ $(OBJDIR)/debug_%.o: $(SRCDIR)/%.f90 | $(OBJDIR)
 	$(FC) $(FCFLAGS_DEBUG) -J$(OBJDIR) -c -o $@ $<
 
 # Module dependencies
-$(OBJDIR)/simulation_config.o: $(OBJDIR)/precision.o
-$(OBJDIR)/functions.o: $(OBJDIR)/precision.o $(OBJDIR)/simulation_config.o
+$(OBJDIR)/grid_config.o: $(OBJDIR)/precision.o
+$(OBJDIR)/functions.o: $(OBJDIR)/precision.o $(OBJDIR)/grid_config.o
 $(OBJDIR)/pde_stepper.o: $(OBJDIR)/precision.o $(OBJDIR)/functions.o
 $(OBJDIR)/evolve.o: $(OBJDIR)/precision.o $(OBJDIR)/pde_stepper.o $(OBJDIR)/functions.o
-$(OBJDIR)/mass_inf.o: $(OBJDIR)/precision.o $(OBJDIR)/functions.o $(OBJDIR)/evolve.o $(OBJDIR)/simulation_config.o $(OBJDIR)/polint.o $(OBJDIR)/utils.o $(OBJDIR)/AMR.o
+$(OBJDIR)/mass_inf.o: $(OBJDIR)/precision.o $(OBJDIR)/functions.o $(OBJDIR)/evolve.o $(OBJDIR)/grid_config.o $(OBJDIR)/polint.o $(OBJDIR)/utils.o $(OBJDIR)/AMR.o
 $(OBJDIR)/utils.o: $(OBJDIR)/precision.o
 $(OBJDIR)/polint.o: $(OBJDIR)/precision.o
-$(OBJDIR)/AMR.o: $(OBJDIR)/precision.o $(OBJDIR)/simulation_config.o $(OBJDIR)/polint.o $(OBJDIR)/utils.o $(OBJDIR)/functions.o
+$(OBJDIR)/AMR.o: $(OBJDIR)/precision.o $(OBJDIR)/grid_config.o $(OBJDIR)/polint.o $(OBJDIR)/utils.o $(OBJDIR)/functions.o
 
-$(OBJDIR)/debug_functions.o: $(OBJDIR)/debug_simulation_config.o
+$(OBJDIR)/debug_functions.o: $(OBJDIR)/debug_grid_config.o
 $(OBJDIR)/debug_pde_stepper.o: $(OBJDIR)/debug_functions.o
 $(OBJDIR)/debug_evolve.o: $(OBJDIR)/debug_pde_stepper.o $(OBJDIR)/debug_functions.o
-$(OBJDIR)/debug_mass_inf.o: $(OBJDIR)/debug_functions.o $(OBJDIR)/debug_evolve.o $(OBJDIR)/debug_simulation_config.o $(OBJDIR)/debug_polint.o $(OBJDIR)/debug_utils.o $(OBJDIR)/debug_AMR.o
+$(OBJDIR)/debug_mass_inf.o: $(OBJDIR)/debug_functions.o $(OBJDIR)/debug_evolve.o $(OBJDIR)/debug_grid_config.o $(OBJDIR)/debug_polint.o $(OBJDIR)/debug_utils.o $(OBJDIR)/debug_AMR.o
 
 # Create directories
 $(BINDIR) $(OBJDIR):

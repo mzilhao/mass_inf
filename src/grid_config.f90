@@ -4,13 +4,13 @@
 !! This allows swapping physics implementations (functions.f90) while keeping
 !! the numerical solver infrastructure constant.
 
-module simulation_config_mod
+module grid_config_mod
   use precision
   implicit none
 
-  !> Numerical simulation configuration type
+  !> Numerical grid configuration type
   !! Stores all grid, integration, and AMR parameters
-  type :: simulation_config
+  type :: grid_config
     ! Integration domain bounds
     real(dp) :: u_min = 0.0_dp, v_min = 5.0_dp   ! Domain start
     real(dp) :: u_max = 30.0_dp, v_max = 10.0_dp ! Domain end
@@ -34,15 +34,15 @@ module simulation_config_mod
     ! Derived values (dummy initializations, to be computed later)
     integer :: Nu = 0, Nv = 0                          ! Number of grid points
     integer :: Nu_max = 0                              ! Maximum u-arrays allocation size
-  end type simulation_config
+  end type grid_config
 
 contains
 
 !> Read simulation configuration from a namelist file
 !! Reads &simulation namelist and computes derived grid dimensions.
 !! Falls back to defaults if file doesn't exist or read fails.
-subroutine read_simulation_config_from_file(sim_cfg, filename)
-  type(simulation_config), intent(out) :: sim_cfg
+subroutine read_grid_config_from_file(grid_cfg, filename)
+  type(grid_config), intent(out) :: grid_cfg
   character(len=*), intent(in)         :: filename
 
   ! Local variables for namelist reading
@@ -57,20 +57,20 @@ subroutine read_simulation_config_from_file(sim_cfg, filename)
   integer :: unit, ierr
 
   ! Initialize with type defaults
-  sim_cfg = simulation_config()
-  u_min = sim_cfg%u_min
-  v_min = sim_cfg%v_min
-  u_max = sim_cfg%u_max
-  v_max = sim_cfg%v_max
-  du    = sim_cfg%du
-  dv    = sim_cfg%dv
-  AMR   = sim_cfg%AMR
-  reldiff_max = sim_cfg%reldiff_max
-  output_du = sim_cfg%output_du
-  output_dv = sim_cfg%output_dv
-  output_base_dir = sim_cfg%output_base_dir
-  progress_stride        = sim_cfg%progress_stride
-  progress_header_stride = sim_cfg%progress_header_stride
+  grid_cfg = grid_config()
+  u_min = grid_cfg%u_min
+  v_min = grid_cfg%v_min
+  u_max = grid_cfg%u_max
+  v_max = grid_cfg%v_max
+  du    = grid_cfg%du
+  dv    = grid_cfg%dv
+  AMR   = grid_cfg%AMR
+  reldiff_max = grid_cfg%reldiff_max
+  output_du = grid_cfg%output_du
+  output_dv = grid_cfg%output_dv
+  output_base_dir = grid_cfg%output_base_dir
+  progress_stride        = grid_cfg%progress_stride
+  progress_header_stride = grid_cfg%progress_header_stride
 
   ! Read namelist
   open(newunit=unit, file=filename, status='old', action='read', iostat=ierr)
@@ -87,32 +87,32 @@ subroutine read_simulation_config_from_file(sim_cfg, filename)
   end if
   close(unit)
 
-  ! Update sim_cfg with (possibly modified) namelist values
-  sim_cfg%u_min = u_min
-  sim_cfg%v_min = v_min
-  sim_cfg%u_max = u_max
-  sim_cfg%v_max = v_max
-  sim_cfg%du = du
-  sim_cfg%dv = dv
-  sim_cfg%AMR = AMR
-  sim_cfg%reldiff_max = reldiff_max
-  sim_cfg%output_du = output_du
-  sim_cfg%output_dv = output_dv
-  sim_cfg%output_base_dir = output_base_dir
-  sim_cfg%progress_stride = progress_stride
-  sim_cfg%progress_header_stride = progress_header_stride
+  ! Update grid_cfg with (possibly modified) namelist values
+  grid_cfg%u_min = u_min
+  grid_cfg%v_min = v_min
+  grid_cfg%u_max = u_max
+  grid_cfg%v_max = v_max
+  grid_cfg%du = du
+  grid_cfg%dv = dv
+  grid_cfg%AMR = AMR
+  grid_cfg%reldiff_max = reldiff_max
+  grid_cfg%output_du = output_du
+  grid_cfg%output_dv = output_dv
+  grid_cfg%output_base_dir = output_base_dir
+  grid_cfg%progress_stride = progress_stride
+  grid_cfg%progress_header_stride = progress_header_stride
 
   ! Compute derived grid dimensions
-  call compute_grid_dimensions(sim_cfg)
+  call compute_grid_dimensions(grid_cfg)
 
-end subroutine read_simulation_config_from_file
+end subroutine read_grid_config_from_file
 
 !> Compute derived grid dimensions from domain and step sizes
-subroutine compute_grid_dimensions(sim_cfg)
-  type(simulation_config), intent(inout) :: sim_cfg
-  sim_cfg%Nu = int((sim_cfg%u_max - sim_cfg%u_min) / sim_cfg%du + 1.001_dp)
-  sim_cfg%Nv = int((sim_cfg%v_max - sim_cfg%v_min) / sim_cfg%dv + 1.001_dp)
-  sim_cfg%Nu_max = int(2.0_dp * (sim_cfg%u_max - sim_cfg%u_min) / sim_cfg%reldiff_max)
+subroutine compute_grid_dimensions(grid_cfg)
+  type(grid_config), intent(inout) :: grid_cfg
+  grid_cfg%Nu = int((grid_cfg%u_max - grid_cfg%u_min) / grid_cfg%du + 1.001_dp)
+  grid_cfg%Nv = int((grid_cfg%v_max - grid_cfg%v_min) / grid_cfg%dv + 1.001_dp)
+  grid_cfg%Nu_max = int(2.0_dp * (grid_cfg%u_max - grid_cfg%u_min) / grid_cfg%reldiff_max)
 end subroutine compute_grid_dimensions
 
-end module simulation_config_mod
+end module grid_config_mod

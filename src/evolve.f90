@@ -3,7 +3,7 @@
 module evolve_wrapper
   use precision
   use pde_stepper, only: pde_step
-  use physics_config_mod
+  use model_config_mod
   use functions, only: F, NEQ
   implicit none
   private
@@ -11,8 +11,8 @@ module evolve_wrapper
 
   ! Module-level config storage for rhs_wrapper to access
   ! (Fortran doesn't support closures with explicit context passing)
-  ! This is updated each call to step() to match the input cfg
-  type(physics_config), save :: cfg_module
+  ! This is updated each call to step() to match the input model_cfg
+  type(model_config), save :: cfg_module
 
 contains
 
@@ -28,15 +28,15 @@ contains
 !! @param[in]  du, dv    Step sizes
 !! @param[in]  cfg       Physics configuration (stored in module scope)
 !! @param[in]  n_picard  Optional Picard iterations (default=1)
-subroutine step(h_N, h_S, h_E, h_W, du, dv, cfg, n_picard)
+subroutine step(h_N, h_S, h_E, h_W, du, dv, model_cfg, n_picard)
   double precision, dimension(:), intent(out) :: h_N
   double precision, dimension(:), intent(in)  :: h_S, h_E, h_W
   double precision, intent(in)                :: du, dv
-  type(physics_config), intent(in)            :: cfg
+  type(model_config), intent(in)              :: model_cfg
   integer, intent(in), optional               :: n_picard
 
   ! Store cfg in module scope for rhs_wrapper to access
-  cfg_module = cfg
+  cfg_module = model_cfg
 
   call pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_wrapper, NEQ, n_picard)
 end subroutine step
