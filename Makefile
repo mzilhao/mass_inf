@@ -13,7 +13,7 @@ OBJDIR = obj
 # Model selection (compile-time)
 MODEL ?= rnld
 MODELDIR = $(SRCDIR)/models
-MODEL_SRC = $(MODELDIR)/$(MODEL)_model_impl.f90
+MODEL_SRC = $(MODELDIR)/$(MODEL)_model.f90
 MODEL_OBJ = $(OBJDIR)/model_mod.o
 MODEL_OBJ_DEBUG = $(OBJDIR)/debug_model_mod.o
 
