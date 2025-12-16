@@ -7,7 +7,7 @@
 !     open_output_files, write_output, close_output_files
 
 module model_config_mod
-  use precision
+  use precision_mod
   implicit none
 
   ! TODO: customize configuration fields for your physics

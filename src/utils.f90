@@ -1,4 +1,4 @@
-module utils
+module utils_mod
   implicit none
   private
   public :: relative_difference, print_status, startup
@@ -162,4 +162,4 @@ subroutine startup(param_file, out_dir, force_overwrite, output_base_dir)
 
 end subroutine startup
 
-end module utils
+end module utils_mod

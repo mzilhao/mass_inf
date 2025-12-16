@@ -1,7 +1,7 @@
 module amr_mod
   use precision
   use polint_mod
-  use utils, only: relative_difference
+  use utils_mod, only: relative_difference
   implicit none
   private
   public :: refine_u_grid

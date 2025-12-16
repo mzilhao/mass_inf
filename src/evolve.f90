@@ -1,8 +1,8 @@
 ! Wrapper module to interface with pde_stepper
 
-module evolve_wrapper
+module evolve_wrapper_mod
   use precision
-  use pde_stepper, only: pde_step
+  use pde_stepper_mod, only: pde_step
   use model_config_mod
   use model_mod, only: F
   implicit none
@@ -49,4 +49,4 @@ subroutine rhs_wrapper(dhduv, h, dhdu, dhdv)
   call F(dhduv, h, dhdu, dhdv, cfg_module)
 end subroutine rhs_wrapper
 
-end module evolve_wrapper
+end module evolve_wrapper_mod

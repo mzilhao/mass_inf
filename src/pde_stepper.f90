@@ -1,4 +1,4 @@
-module pde_stepper
+module pde_stepper_mod
   use precision
   implicit none
   private
@@ -89,6 +89,6 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter, tol)
     h_N = h_W + h_E - h_S + dhduv_P_new * du * dv
   end do picard_loop
 
-end subroutine pde_step
+  end subroutine pde_step
 
-end module pde_stepper
+end module pde_stepper_mod

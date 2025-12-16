@@ -1,11 +1,11 @@
 program mass_inflation
   use precision
-  use grid_config_mod,   only: grid_config, load_grid => load
-  use model_config_mod,  only: model_config, load_model => load
-  use model_mod,         only: NEQ, init_cond, open_output_files, write_output, close_output_files
-  use evolve_wrapper,    only: step
-  use utils,             only: startup, print_status
-  use amr_mod,           only: refine_u_grid
+  use grid_config_mod,    only: grid_config, load_grid => load
+  use model_config_mod,   only: model_config, load_model => load
+  use model_mod,          only: NEQ, init_cond, open_output_files, write_output, close_output_files
+  use evolve_wrapper_mod, only: step
+  use utils_mod,          only: startup, print_status
+  use amr_mod,            only: refine_u_grid
   implicit none
 
   ! Parameters for the physical model and grid configuration

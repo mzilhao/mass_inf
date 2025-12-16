@@ -16,7 +16,7 @@
 ! This dummy implementation compiles and runs, returning trivial results.
 ! Use it as a reference for the minimal set of functions a model must provide.
 module model_config_mod
-  use precision
+  use precision_mod
   implicit none
 
   ! Minimal model configuration; values unused by dummy
