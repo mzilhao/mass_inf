@@ -30,16 +30,22 @@ contains
 !! @param[in]  dv          Step size in v direction
 !! @param[in]  rhs_func    Right-hand side F(dhduv, h, dhdu, dhdv)
 !! @param[in]  n_iter      Number of Picard iterations for refinement
-subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter)
+!! @param[in]  tol         Convergence tolerance (optional, default=1.0e-8)
+subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter, tol)
   real(dp), dimension(:), intent(out) :: h_N
   real(dp), dimension(:), intent(in)  :: h_S, h_E, h_W
   real(dp), intent(in)                :: du, dv
   procedure(rhs_interface)            :: rhs_func
   integer, intent(in)                 :: n_iter
+  real(dp), intent(in), optional      :: tol
 
   integer  :: j, neq
-  real(dp) :: max_err
+  real(dp) :: max_err, tolerance
   real(dp), dimension(size(h_S)) :: h_P, dhdu_P, dhdv_P, dhduv_P, dhduv_P_new
+
+  ! Set convergence tolerance for the Picard iterations
+  tolerance = 1.0e-8_dp
+  if (present(tol)) tolerance = tol
 
   ! Validate input array sizes
   neq = size(h_S)
@@ -76,7 +82,7 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter)
     ! Check convergence
     max_err = maxval(abs(dhduv_P_new - dhduv_P))
     ! print *, "Picard iteration ", j, ": max_err = ", max_err
-    if (max_err < 1.0e-8_dp) exit picard_loop
+    if (max_err < tolerance) exit picard_loop
     dhduv_P = dhduv_P_new
 
     ! Update solution
