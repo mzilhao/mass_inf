@@ -7,6 +7,8 @@
 module grid_config_mod
   use precision
   implicit none
+  private
+  public :: grid_config, load
 
   !> Numerical grid configuration type
   !! Stores all grid, integration, and AMR parameters
