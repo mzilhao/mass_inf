@@ -1,9 +1,34 @@
 module utils_mod
   implicit none
   private
-  public :: relative_difference, print_status, startup
+  public :: relative_difference, print_status, startup, trim_filename
 
 contains
+
+!> Trim directory path and file extension from a filename
+!!
+!! @param[in] filename Full filename with path and extension
+!! @return Trimmed filename without path and extension
+function trim_filename(filename) result(trimmed)
+  character(len=*), intent(in) :: filename
+  character(len=len(filename)) :: trimmed
+  integer :: last_slash, last_dot
+
+  ! Strip any leading path using back=.true. to find the last '/'
+  last_slash = index(filename, '/', back=.true.)
+  if (last_slash > 0) then
+    trimmed = filename(last_slash + 1:)
+  else
+    trimmed = filename
+  end if
+
+  ! Strip extension if present
+  last_dot = index(trimmed, '.', back=.true.)
+  if (last_dot > 0) then
+    trimmed = trimmed(:last_dot - 1)
+  end if
+
+end function trim_filename
 
 !> Compute relative difference between two values
 !! Used for AMR criterion based on the variation of the r variable.

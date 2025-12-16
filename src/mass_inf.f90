@@ -4,7 +4,7 @@ program mass_inflation
   use model_config_mod,   only: model_config, load_model => load
   use model_mod,          only: NEQ, init_cond, open_output_files, write_output, close_output_files
   use evolve_wrapper_mod, only: step
-  use utils_mod,          only: startup, print_status
+  use utils_mod,          only: startup, print_status, trim_filename
   use amr_mod,            only: refine_u_grid
   implicit none
 
@@ -22,7 +22,7 @@ program mass_inflation
   real(dp) :: du, dv, u_min, v_min, u_max, v_max
   real(dp) :: start_time_cpu
   integer  :: Nv, Nu, Nu_max
-  integer  :: i, j, k, jm1, next_idx
+  integer  :: i, j, jm1, next_idx
 
   integer, parameter :: N_PICARD_ITERATIONS = 4
 
@@ -68,13 +68,7 @@ program mass_inflation
   end if
 
   ! Output directory name (parameter file basename without extension)
-  out_dir = trim(param_file)
-  ! Strip any leading path
-  i = index(out_dir, '/', back=.true.)
-  if (i > 0) out_dir = out_dir(i+1:)
-  ! Strip extension if present
-  j = index(out_dir, '.', back=.true.)
-  if (j > 0) out_dir = out_dir(:j-1)
+  out_dir = trim_filename(param_file)
 
   ! Read simulation and physics configurations
   call load_grid(grid_cfg, param_file)
@@ -128,6 +122,8 @@ program mass_inflation
 
   ! Initialize boundary conditions
   call init_cond(h_u0, h_v0, grid_cfg, model_cfg)
+
+  ! Start CPU timer
   call cpu_time(start_time_cpu)
 
   v_cur = v_min
