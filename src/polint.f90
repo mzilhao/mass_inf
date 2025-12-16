@@ -1,8 +1,9 @@
-! Polynomial interpolation routine
-! Copied from Numerical Recipes in C++, 2nd edition.
-! Performs Lagrange polynomial interpolation/extrapolation.
+!> Polynomial interpolation routine
+!! Copied from Numerical Recipes in C++, 2nd edition.
+!! Performs Lagrange polynomial interpolation/extrapolation.
 
 module polint_mod
+  use precision
   implicit none
   private
   public :: polint
@@ -10,26 +11,22 @@ module polint_mod
 contains
 
 !> Lagrange polynomial interpolation/extrapolation
-!! Input:
-!!   xa, ya : known data points (arrays of size N)
-!!   x      : point to interpolate at
-!! Output:
-!!   polint : interpolated value at x
+!! @param x      Point to interpolate at
+!! @param xa     Known x data points (array of size N)
+!! @param ya     Known y data points (array of size N)
+!! @return       Interpolated value at x
 function polint(x, xa, ya)
   implicit none
+  real(dp), intent(in) :: x
+  real(dp), dimension(:), intent(in) :: xa, ya
+  real(dp) :: polint
 
-  double precision :: polint
-  double precision, dimension(:), intent(in) :: xa, ya
-  double precision, intent(in) :: x
-
-  integer :: i, m, ns, N
-  double precision :: ho, hp, den, diff, difftemp, w
-  double precision, allocatable, dimension(:) :: C, D
+  integer  :: i, m, ns, N
+  real(dp) :: ho, hp, den, diff, difftemp, w
+  real(dp), dimension(size(xa)) :: C, D
 
   ns = 1
   N = size(ya)
-
-  allocate(C(N), D(N))
 
   ! Find the closest point to x
   diff = abs(x - xa(1))
@@ -40,7 +37,7 @@ function polint(x, xa, ya)
       diff = difftemp
     end if
 
-    C(i) = ya(i)  ! Initialize C and D arrays
+    C(i) = ya(i)   ! Initialize C and D arrays
     D(i) = ya(i)
   end do
 
@@ -73,8 +70,6 @@ function polint(x, xa, ya)
       ns = ns - 1
     end if
   end do
-
-  deallocate(C, D)
 
 end function polint
 
