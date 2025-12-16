@@ -1,6 +1,8 @@
 module model_config_mod
   use precision
   implicit none
+  private
+  public :: model_config, load
 
   !> Model configuration type - encapsulates all physics parameters
   type :: model_config
@@ -16,6 +18,7 @@ module model_config_mod
 
 contains
 
+!====================================================================================
 !> Initialize physics configuration with derived constants
 subroutine init_model_config(model_cfg)
   type(model_config), intent(inout) :: model_cfg
@@ -24,6 +27,7 @@ subroutine init_model_config(model_cfg)
   model_cfg%qq = sqrt(model_cfg%qq2)
 end subroutine init_model_config
 
+!====================================================================================
 !> Read physics configuration from a namelist file
 !! Reads &physics namelist and computes derived constants.
 !! Reads from an existing namelist file.
@@ -32,7 +36,7 @@ subroutine load(model_cfg, filename)
   character(len=*), intent(in)    :: filename
 
   ! Local variables for namelist reading
-  integer :: D
+  integer  :: D
   real(dp) :: lambda, A, Delta, q, m0
   namelist /physics/ D, lambda, A, Delta, q, m0
 
@@ -76,6 +80,8 @@ end subroutine load
 
 end module model_config_mod
 
+!====================================================================================
+!====================================================================================
 module model_mod
   use precision
   use model_config_mod
@@ -90,36 +96,11 @@ module model_mod
   logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
 
   private
-  public :: F, init_cond
-  public :: compute_diagnostics, write_output
-  public :: open_output_files, close_output_files
   public :: NEQ
+  public :: F, init_cond
+  public :: open_output_files, write_output, close_output_files
 
 contains
-
-!> Compute model-dependent diagnostics (mass, Ricci)
-subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)
-  implicit none
-  real(dp), intent(out)               :: mass, ricci
-  real(dp), dimension(:), intent(in)  :: h, dhdu, dhdv, dhduv
-  type(model_config), intent(in)      :: model_cfg
-
-  integer  :: D
-  real(dp) :: lambda, q2
-
-  D      = model_cfg%D
-  lambda = model_cfg%lambda
-  q2     = model_cfg%q2
-
-  mass = 0.5d0 * h(1)**(D-3) * ( 1.d0 - lambda/3.d0 * h(1)*h(1)           &
-        + q2 / ( (h(1)*h(1))**(D-3) )                                     &
-        + 2.d0 * dhdu(1) * dhdv(1) / exp(2.d0 * h(3)) )
-
-  ricci = (D-3)*(D-2)/( h(1)*h(1) ) * (                                   &
-        1 + 2*exp(-2*h(3)) * dhdu(1)*dhdv(1)                              &
-        )                                                                 &
-        + 4*exp(-2*h(3))*dhduv(3) + 4*(D-2)*dhduv(1)*exp(-2*h(3)) / h(1)
-end subroutine compute_diagnostics
 
 !====================================================================================
 !> Right-hand side of the PDE system
@@ -130,7 +111,7 @@ subroutine F(dhduv, h, dhdu, dhdv, model_cfg)
 
   real(dp), dimension(NEQ), intent(out) :: dhduv
   real(dp), dimension(NEQ), intent(in)  :: h, dhdu, dhdv
-  type(model_config), intent(in)      :: model_cfg
+  type(model_config), intent(in)        :: model_cfg
 
   ! Local copies for readability
   integer  :: D
@@ -251,23 +232,15 @@ subroutine open_output_files(out_dir)
   derivs_open = .true.
 end subroutine open_output_files
 
+!====================================================================================
 !> Close all output files if open
 subroutine close_output_files()
-  if (fields_open .and. fields_unit > 0) then
-    close(fields_unit)
-  end if
-  if (diag_open .and. diag_unit > 0) then
-    close(diag_unit)
-  end if
-  if (derivs_open .and. derivs_unit > 0) then
-    close(derivs_unit)
-  end if
-  fields_unit = -1
-  fields_open = .false.
-  diag_unit   = -1
-  diag_open   = .false.
-  derivs_unit = -1
-  derivs_open = .false.
+  if (fields_open .and. fields_unit > 0) close(fields_unit)
+  if (diag_open   .and. diag_unit   > 0) close(diag_unit)
+  if (derivs_open .and. derivs_unit > 0) close(derivs_unit)
+  fields_unit = -1; fields_open = .false.
+  diag_unit   = -1; diag_open   = .false.
+  derivs_unit = -1; derivs_open = .false.
 end subroutine close_output_files
 
 !====================================================================================
@@ -276,10 +249,10 @@ end subroutine close_output_files
 !! Writes ASCII output in columns.
 !! v-slices are marked with comment lines: # v = X.XXXXX
 subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, model_cfg)
-  real(dp), intent(in)                :: u_val, v_val, du, dv
-  real(dp), dimension(:), intent(in)  :: h_N, h_S, h_E, h_W
-  type(grid_config), intent(in)       :: grid_cfg
-  type(model_config),    intent(in)   :: model_cfg
+  real(dp), intent(in)               :: u_val, v_val, du, dv
+  real(dp), dimension(:), intent(in) :: h_N, h_S, h_E, h_W
+  type(grid_config), intent(in)      :: grid_cfg
+  type(model_config), intent(in)     :: model_cfg
 
   real(dp), dimension(NEQ) :: h_P, dhdu_P, dhdv_P, dhduv_P
   logical  :: u_ok, v_ok
@@ -324,9 +297,9 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, mode
     last_v_marked_val = v_val
   end if
 
-  h_P     = 0.25_dp * (h_N + h_S + h_E - h_W)
-  dhdu_P  = (h_W - h_S + h_N - h_E) * 0.5_dp / du
-  dhdv_P  = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
+  h_P    = 0.25_dp * (h_N + h_S + h_E - h_W)
+  dhdu_P = (h_W - h_S + h_N - h_E) * 0.5_dp / du
+  dhdv_P = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
 
   call F(dhduv_P, h_P, dhdu_P, dhdv_P, model_cfg)
   call compute_diagnostics(mass, ricci, h_P, dhdu_P, dhdv_P, dhduv_P, model_cfg)
@@ -337,5 +310,30 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, mode
   write(derivs_unit, '(7e16.8)') u_P, dhdu_P(1), dhdv_P(1)   ! u, drdu, drdv
 
 end subroutine write_output
+
+!====================================================================================
+!> Compute model-dependent diagnostics (mass, Ricci)
+subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)
+  implicit none
+  real(dp), intent(out)               :: mass, ricci
+  real(dp), dimension(:), intent(in)  :: h, dhdu, dhdv, dhduv
+  type(model_config), intent(in)      :: model_cfg
+
+  integer  :: D
+  real(dp) :: lambda, q2
+
+  D      = model_cfg%D
+  lambda = model_cfg%lambda
+  q2     = model_cfg%q2
+
+  mass = 0.5d0 * h(1)**(D-3) * ( 1.d0 - lambda/3.d0 * h(1)*h(1)           &
+        + q2 / ( (h(1)*h(1))**(D-3) )                                     &
+        + 2.d0 * dhdu(1) * dhdv(1) / exp(2.d0 * h(3)) )
+
+  ricci = (D-3)*(D-2)/( h(1)*h(1) ) * (                                   &
+        1 + 2*exp(-2*h(3)) * dhdu(1)*dhdv(1)                              &
+        )                                                                 &
+        + 4*exp(-2*h(3))*dhduv(3) + 4*(D-2)*dhduv(1)*exp(-2*h(3)) / h(1)
+end subroutine compute_diagnostics
 
 end module model_mod
