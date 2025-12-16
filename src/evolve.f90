@@ -29,11 +29,11 @@ contains
 !! @param[in]  cfg       Physics configuration (stored in module scope)
 !! @param[in]  n_picard  Optional Picard iterations (default=1)
 subroutine step(h_N, h_S, h_E, h_W, du, dv, model_cfg, n_picard)
-  double precision, dimension(:), intent(out) :: h_N
-  double precision, dimension(:), intent(in)  :: h_S, h_E, h_W
-  double precision, intent(in)                :: du, dv
-  type(model_config), intent(in)              :: model_cfg
-  integer, intent(in), optional               :: n_picard
+  real(dp), dimension(:), intent(out) :: h_N
+  real(dp), dimension(:), intent(in)  :: h_S, h_E, h_W
+  real(dp), intent(in)                :: du, dv
+  type(model_config), intent(in)      :: model_cfg
+  integer, intent(in), optional       :: n_picard
 
   ! Store cfg in module scope for rhs_wrapper to access
   cfg_module = model_cfg
@@ -43,8 +43,8 @@ end subroutine step
 
 !> RHS wrapper that accesses physics config from module scope
 subroutine rhs_wrapper(dhduv, h, dhdu, dhdv)
-  double precision, dimension(:), intent(out) :: dhduv
-  double precision, dimension(:), intent(in)  :: h, dhdu, dhdv
+  real(dp), dimension(:), intent(out) :: dhduv
+  real(dp), dimension(:), intent(in)  :: h, dhdu, dhdv
 
   call F(dhduv, h, dhdu, dhdv, cfg_module)
 end subroutine rhs_wrapper
