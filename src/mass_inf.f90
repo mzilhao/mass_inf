@@ -1,7 +1,7 @@
 program mass_inflation
   use precision
-  use grid_config_mod,   only: grid_config, read_grid_config_from_file
-  use model_config_mod,  only: model_config, read_model_config_from_file
+  use grid_config_mod,   only: grid_config, load_grid => load
+  use model_config_mod,  only: model_config, load_model => load
   use model_mod,         only: NEQ, init_cond, open_output_files, write_output, close_output_files
   use evolve_wrapper,    only: step
   use utils,             only: startup, print_status
@@ -77,8 +77,8 @@ program mass_inflation
   if (j > 0) out_dir = out_dir(:j-1)
 
   ! Read simulation and physics configurations
-  call read_grid_config_from_file(grid_cfg, param_file)
-  call read_model_config_from_file(model_cfg, param_file)
+  call load_grid(grid_cfg, param_file)
+  call load_model(model_cfg, param_file)
 
   ! Setup output directory and print startup banner
   call startup(param_file, out_dir, force_overwrite, grid_cfg%output_base_dir)

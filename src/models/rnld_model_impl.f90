@@ -27,7 +27,7 @@ end subroutine init_model_config
 !> Read physics configuration from a namelist file
 !! Reads &physics namelist and computes derived constants.
 !! Reads from an existing namelist file.
-subroutine read_model_config_from_file(model_cfg, filename)
+subroutine load(model_cfg, filename)
   type(model_config), intent(out) :: model_cfg
   character(len=*), intent(in)    :: filename
 
@@ -72,7 +72,7 @@ subroutine read_model_config_from_file(model_cfg, filename)
 
   ! Compute derived constants
   call init_model_config(model_cfg)
-end subroutine read_model_config_from_file
+end subroutine load
 
 end module model_config_mod
 

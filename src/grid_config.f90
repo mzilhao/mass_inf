@@ -40,10 +40,10 @@ contains
 
 !> Read simulation configuration from a namelist file
 !! Reads &simulation namelist and computes derived grid dimensions.
-!! Falls back to defaults if file doesn't exist or read fails.
-subroutine read_grid_config_from_file(grid_cfg, filename)
+!! Falls back to defaults for parameters not specified in the file.
+subroutine load(grid_cfg, filename)
   type(grid_config), intent(out) :: grid_cfg
-  character(len=*), intent(in)         :: filename
+  character(len=*), intent(in)   :: filename
 
   ! Local variables for namelist reading
   real(dp) :: u_min, v_min, u_max, v_max, du, dv, reldiff_max
@@ -58,6 +58,7 @@ subroutine read_grid_config_from_file(grid_cfg, filename)
 
   ! Initialize with type defaults
   grid_cfg = grid_config()
+
   u_min = grid_cfg%u_min
   v_min = grid_cfg%v_min
   u_max = grid_cfg%u_max
@@ -105,14 +106,16 @@ subroutine read_grid_config_from_file(grid_cfg, filename)
   ! Compute derived grid dimensions
   call compute_grid_dimensions(grid_cfg)
 
-end subroutine read_grid_config_from_file
+end subroutine load
 
 !> Compute derived grid dimensions from domain and step sizes
 subroutine compute_grid_dimensions(grid_cfg)
   type(grid_config), intent(inout) :: grid_cfg
+
   grid_cfg%Nu = int((grid_cfg%u_max - grid_cfg%u_min) / grid_cfg%du + 1.001_dp)
   grid_cfg%Nv = int((grid_cfg%v_max - grid_cfg%v_min) / grid_cfg%dv + 1.001_dp)
   grid_cfg%Nu_max = int(2.0_dp * (grid_cfg%u_max - grid_cfg%u_min) / grid_cfg%reldiff_max)
+
 end subroutine compute_grid_dimensions
 
 end module grid_config_mod

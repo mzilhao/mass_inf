@@ -1,7 +1,7 @@
 ! Template model implementation
 ! Copy this file to create a new model and replace TODOs.
 ! Implement the stable API expected by callers:
-! - module model_config_mod: defines type(model_config), init_model_config, read_model_config_from_file
+! - module model_config_mod: defines type(model_config), init_model_config, load
 ! - module model_mod: provides NEQ and routines:
 !     F, init_cond, compute_diagnostics,
 !     open_output_files, write_output, close_output_files
@@ -34,7 +34,7 @@ subroutine init_model_config(model_cfg)
 end subroutine init_model_config
 
 ! Read &physics namelist and initialize model_cfg
-subroutine read_model_config_from_file(model_cfg, filename)
+subroutine load(model_cfg, filename)
   type(model_config), intent(out) :: model_cfg
   character(len=*), intent(in)    :: filename
   integer :: unit, ierr
@@ -65,7 +65,7 @@ subroutine read_model_config_from_file(model_cfg, filename)
   end if
 
   call init_model_config(model_cfg)
-end subroutine read_model_config_from_file
+end subroutine load
 
 end module model_config_mod
 
