@@ -27,7 +27,7 @@ module model_mod
   logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
 
   private
-  public :: F, init_model_config, read_model_config_from_file, init_cond
+  public :: F, read_model_config_from_file, init_cond
   public :: compute_diagnostics, write_output
   public :: open_output_files, close_output_files
   public :: NEQ
@@ -47,7 +47,7 @@ end subroutine init_model_config
 !! Reads from an existing namelist file.
 subroutine read_model_config_from_file(model_cfg, filename)
   type(model_config), intent(out) :: model_cfg
-  character(len=*), intent(in)      :: filename
+  character(len=*), intent(in)    :: filename
 
   ! Local variables for namelist reading
   integer :: D
@@ -97,9 +97,9 @@ subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)
   implicit none
   real(dp), intent(out)               :: mass, ricci
   real(dp), dimension(:), intent(in)  :: h, dhdu, dhdv, dhduv
-  type(model_config), intent(in)    :: model_cfg
+  type(model_config), intent(in)      :: model_cfg
 
-  integer :: D
+  integer  :: D
   real(dp) :: lambda, q2
 
   D      = model_cfg%D
@@ -128,7 +128,7 @@ subroutine F(dhduv, h, dhdu, dhdv, model_cfg)
   type(model_config), intent(in)      :: model_cfg
 
   ! Local copies for readability
-  integer :: D
+  integer  :: D
   real(dp) :: lambda, qq2
 
   ! Extract config values for cleaner code
@@ -162,11 +162,11 @@ subroutine init_cond(h_u0, h_v0, grid_cfg, model_cfg)
   type(model_config), intent(in)          :: model_cfg
 
   ! Local variables
-  integer :: i, D
+  integer  :: i, D
   real(dp) :: u, v, lambda, q2
   real(dp) :: r00, sigma_0, m0, ru0, v0, v1
   real(dp) :: A, Delta
-  logical :: scalarfield
+  logical  :: scalarfield
 
   ! Extract config values
   D      = model_cfg%D

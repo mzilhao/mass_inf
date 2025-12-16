@@ -1,17 +1,16 @@
 program mass_inflation
   use precision
-  use model_config_mod
-  use grid_config_mod
-  use model_mod
-  use evolve_wrapper, only: step
-  use polint_mod
-  use utils
-  use amr_mod
+  use grid_config_mod,   only: grid_config, read_grid_config_from_file
+  use model_config_mod,  only: model_config
+  use model_mod,         only: NEQ, read_model_config_from_file, init_cond, open_output_files, write_output, close_output_files
+  use evolve_wrapper,    only: step
+  use utils,             only: startup, print_status
+  use amr_mod,           only: refine_u_grid
   implicit none
 
-  ! Physics and simulation configuration
-  type(model_config)    :: model_cfg
-  type(grid_config)     :: grid_cfg
+  ! Parameters for the physical model and grid configuration
+  type(model_config)  :: model_cfg
+  type(grid_config)   :: grid_cfg
 
   real(dp), allocatable, dimension(:,:) :: h_u0, h_v0
   integer,  allocatable, dimension(:)   :: plus, minus
@@ -26,7 +25,6 @@ program mass_inflation
   integer  :: i, j, k, jm1, next_idx
 
   integer, parameter :: N_PICARD_ITERATIONS = 4
-  integer, parameter :: N_INTERP_POINTS = 5
 
   ! IO and file management
   character(len=256) :: out_dir, param_file, arg, prog_name

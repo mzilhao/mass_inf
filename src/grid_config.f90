@@ -1,8 +1,8 @@
 !> Simulation Configuration Module
 !! 
 !! Encapsulates all numerical/integration parameters independent of physics.
-!! This allows swapping physics implementations (functions.f90) while keeping
-!! the numerical solver infrastructure constant.
+!! This allows swapping physics implementations (models/) while keeping
+!! the numerical solver infrastructure.
 
 module grid_config_mod
   use precision
@@ -19,21 +19,21 @@ module grid_config_mod
     real(dp) :: du = 0.01_dp, dv = 0.0005_dp     ! Step sizes in u, v directions
 
     ! AMR (Adaptive Mesh Refinement) parameters
-    logical :: AMR = .true.                            ! Enable AMR
-    real(dp) :: reldiff_max = 0.0001_dp         ! Thresholds for refinement
+    logical :: AMR = .true.                      ! Enable AMR
+    real(dp) :: reldiff_max = 0.0001_dp          ! Thresholds for refinement
 
     ! Output sampling spacing (absolute values in domain units)
-    real(dp) :: output_du = 0.05_dp             ! Write every this Δu
-    real(dp) :: output_dv = 0.05_dp             ! Write every this Δv
-    character(len=256) :: output_base_dir = ''         ! Base dir under which run folder is created ('' = CWD)
+    real(dp) :: output_du = 0.05_dp              ! Write every this Δu
+    real(dp) :: output_dv = 0.05_dp              ! Write every this Δv
+    character(len=256) :: output_base_dir = ''   ! Base dir under which run folder is created ('' = CWD)
 
     ! Progress reporting cadence (stdout)
     integer :: progress_stride = 100
     integer :: progress_header_stride = 5000
 
     ! Derived values (dummy initializations, to be computed later)
-    integer :: Nu = 0, Nv = 0                          ! Number of grid points
-    integer :: Nu_max = 0                              ! Maximum u-arrays allocation size
+    integer :: Nu = 0, Nv = 0                    ! Number of grid points
+    integer :: Nu_max = 0                        ! Maximum u-arrays allocation size
   end type grid_config
 
 contains
