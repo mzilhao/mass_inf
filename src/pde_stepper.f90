@@ -7,11 +7,10 @@ module pde_stepper
   ! Abstract interface for RHS function
   ! Allows any subroutine with this signature to be passed
   abstract interface
-    subroutine rhs_interface(dhduv, h, dhdu, dhdv, neq)
+    subroutine rhs_interface(dhduv, h, dhdu, dhdv)
       import :: dp
-      integer, intent(in) :: neq
-      real(dp), dimension(neq), intent(out) :: dhduv
-      real(dp), dimension(neq), intent(in)  :: h, dhdu, dhdv
+      real(dp), dimension(:), intent(out) :: dhduv
+      real(dp), dimension(:), intent(in)  :: h, dhdu, dhdv
     end subroutine rhs_interface
   end interface
 
@@ -29,25 +28,23 @@ contains
 !! @param[in]  h_W         Values at point (u+du, v) [West]
 !! @param[in]  du          Step size in u direction
 !! @param[in]  dv          Step size in v direction
-!! @param[in]  rhs_func    Right-hand side F(dhduv, h, dhdu, dhdv, neq)
-!! @param[in]  neq         Number of equations (system size)
+!! @param[in]  rhs_func    Right-hand side F(dhduv, h, dhdu, dhdv)
 !! @param[in]  n_picard    Number of Picard iterations for refinement (optional, default=1)
-subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, neq, n_picard)
+subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_picard)
   real(dp), dimension(:), intent(out) :: h_N
   real(dp), dimension(:), intent(in)  :: h_S, h_E, h_W
   real(dp), intent(in)                :: du, dv
-  procedure(rhs_interface)                    :: rhs_func
-  integer, intent(in)                         :: neq
-  integer, intent(in), optional               :: n_picard
+  procedure(rhs_interface)            :: rhs_func
+  integer, intent(in), optional       :: n_picard
 
-  integer :: j, n_iter
+  integer :: j, n_iter, neq
   real(dp) :: max_err
-  real(dp), dimension(neq) :: h_P, dhdu_P, dhdv_P, dhduv_P, dhduv_P_new
+  real(dp), dimension(size(h_S)) :: h_P, dhdu_P, dhdv_P, dhduv_P, dhduv_P_new
 
   ! Validate input array sizes
-  if (size(h_N) /= neq .or. size(h_S) /= neq .or. &
-      size(h_E) /= neq .or. size(h_W) /= neq) then
-    error stop "evolve: input array size mismatch with neq"
+  neq = size(h_S)
+  if (size(h_N) /= neq .or. size(h_E) /= neq .or. size(h_W) /= neq) then
+    error stop "pde_step: input array size mismatch"
   end if
 
   ! Set number of Picard iterations
@@ -68,7 +65,7 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, neq, n_picard)
   dhdv_P = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
 
   ! Evaluate RHS at P
-  call rhs_func(dhduv_P, h_P, dhdu_P, dhdv_P, neq)
+  call rhs_func(dhduv_P, h_P, dhdu_P, dhdv_P)
 
   ! CORRECTOR: Update with RHS contribution
   h_N = h_W + h_E - h_S + dhduv_P * du * dv
@@ -81,7 +78,7 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, neq, n_picard)
     dhdv_P = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
 
     ! Re-evaluate RHS at P
-    call rhs_func(dhduv_P_new, h_P, dhdu_P, dhdv_P, neq)
+    call rhs_func(dhduv_P_new, h_P, dhdu_P, dhdv_P)
 
     ! Check convergence
     max_err = maxval(abs(dhduv_P_new - dhduv_P))

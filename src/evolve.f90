@@ -4,7 +4,7 @@ module evolve_wrapper
   use precision
   use pde_stepper, only: pde_step
   use model_config_mod
-  use model_mod, only: F, NEQ
+  use model_mod, only: F
   implicit none
   private
   public :: step
@@ -38,14 +38,13 @@ subroutine step(h_N, h_S, h_E, h_W, du, dv, model_cfg, n_picard)
   ! Store cfg in module scope for rhs_wrapper to access
   cfg_module = model_cfg
 
-  call pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_wrapper, NEQ, n_picard)
+  call pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_wrapper, n_picard)
 end subroutine step
 
 !> RHS wrapper that accesses physics config from module scope
-subroutine rhs_wrapper(dhduv, h, dhdu, dhdv, neq)
-  integer, intent(in) :: neq
-  double precision, dimension(neq), intent(out) :: dhduv
-  double precision, dimension(neq), intent(in)  :: h, dhdu, dhdv
+subroutine rhs_wrapper(dhduv, h, dhdu, dhdv)
+  double precision, dimension(:), intent(out) :: dhduv
+  double precision, dimension(:), intent(in)  :: h, dhdu, dhdv
 
   call F(dhduv, h, dhdu, dhdv, cfg_module)
 end subroutine rhs_wrapper
