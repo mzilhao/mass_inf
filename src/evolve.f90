@@ -27,13 +27,13 @@ contains
 !! @param[in]  h_S, h_E, h_W  Boundary values
 !! @param[in]  du, dv    Step sizes
 !! @param[in]  cfg       Physics configuration (stored in module scope)
-!! @param[in]  n_picard  Optional Picard iterations (default=1)
+!! @param[in]  n_picard  Number of Picard iterations
 subroutine step(h_N, h_S, h_E, h_W, du, dv, model_cfg, n_picard)
   real(dp), dimension(:), intent(out) :: h_N
   real(dp), dimension(:), intent(in)  :: h_S, h_E, h_W
   real(dp), intent(in)                :: du, dv
   type(model_config), intent(in)      :: model_cfg
-  integer, intent(in), optional       :: n_picard
+  integer, intent(in)                 :: n_picard
 
   ! Store cfg in module scope for rhs_wrapper to access
   cfg_module = model_cfg

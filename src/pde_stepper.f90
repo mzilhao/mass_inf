@@ -20,7 +20,7 @@ contains
 !!
 !! Solves: ∂_{uv} h_j(u,v) = F_j(h_k, ∂_u h_k, ∂_v h_k)
 !!
-!! Uses a predictor-corrector scheme with optional Picard iterations.
+!! Uses a predictor-corrector scheme with Picard iterations.
 !!
 !! @param[out] h_N         Solution at point (u+du, v+dv) [North]
 !! @param[in]  h_S         Values at point (u, v) [South]
@@ -29,15 +29,15 @@ contains
 !! @param[in]  du          Step size in u direction
 !! @param[in]  dv          Step size in v direction
 !! @param[in]  rhs_func    Right-hand side F(dhduv, h, dhdu, dhdv)
-!! @param[in]  n_picard    Number of Picard iterations for refinement (optional, default=1)
-subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_picard)
+!! @param[in]  n_iter      Number of Picard iterations for refinement
+subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter)
   real(dp), dimension(:), intent(out) :: h_N
   real(dp), dimension(:), intent(in)  :: h_S, h_E, h_W
   real(dp), intent(in)                :: du, dv
   procedure(rhs_interface)            :: rhs_func
-  integer, intent(in), optional       :: n_picard
+  integer, intent(in)                 :: n_iter
 
-  integer :: j, n_iter, neq
+  integer  :: j, neq
   real(dp) :: max_err
   real(dp), dimension(size(h_S)) :: h_P, dhdu_P, dhdv_P, dhduv_P, dhduv_P_new
 
@@ -45,13 +45,6 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_picard)
   neq = size(h_S)
   if (size(h_N) /= neq .or. size(h_E) /= neq .or. size(h_W) /= neq) then
     error stop "pde_step: input array size mismatch"
-  end if
-
-  ! Set number of Picard iterations
-  n_iter = 1
-  if (present(n_picard)) then
-    if (n_picard < 1) error stop "evolve: n_picard must be >= 1"
-    n_iter = n_picard
   end if
 
   ! PREDICTOR: Zero-order approximation
