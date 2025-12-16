@@ -2,10 +2,10 @@
 ! Required public API (to be implemented by any model):
 ! - module model_config_mod
 !     type(model_config)
-! - module model_mod
-!     integer, parameter :: NEQ
 !     subroutine init_model_config(model_cfg)
 !     subroutine read_model_config_from_file(model_cfg, filename)
+! - module model_mod
+!     integer, parameter :: NEQ
 !     subroutine F(dhduv, h, dhdu, dhdv, model_cfg)
 !     subroutine init_cond(h_u0, h_v0, grid_cfg, model_cfg)
 !     subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)
@@ -29,24 +29,6 @@ module model_config_mod
     real(dp) :: m0 = 0.0_dp
     real(dp) :: q2 = 0.0_dp, qq2 = 0.0_dp, qq = 0.0_dp
   end type model_config
-end module model_config_mod
-
-module model_mod
-  use precision
-  use model_config_mod
-  use grid_config_mod
-  implicit none
-
-  integer, parameter :: NEQ = 3
-
-  integer, save :: diag_unit = -1, fields_unit = -1, derivs_unit = -1
-  logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
-
-  private
-  public :: F, init_model_config, read_model_config_from_file, init_cond
-  public :: compute_diagnostics, write_output
-  public :: open_output_files, close_output_files
-  public :: NEQ
 
 contains
 
@@ -94,6 +76,27 @@ subroutine read_model_config_from_file(model_cfg, filename)
 
   call init_model_config(model_cfg)
 end subroutine read_model_config_from_file
+
+end module model_config_mod
+
+module model_mod
+  use precision
+  use model_config_mod
+  use grid_config_mod
+  implicit none
+
+  integer, parameter :: NEQ = 3
+
+  integer, save :: diag_unit = -1, fields_unit = -1, derivs_unit = -1
+  logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
+
+  private
+  public :: F, init_cond
+  public :: compute_diagnostics, write_output
+  public :: open_output_files, close_output_files
+  public :: NEQ
+
+contains
 
 ! Compute model diagnostics (e.g., mass, Ricci). Dummy = zeros.
 subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)

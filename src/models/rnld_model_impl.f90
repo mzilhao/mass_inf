@@ -14,24 +14,6 @@ module model_config_mod
     real(dp) :: q2 = 0.0_dp, qq2 = 0.0_dp, qq = 0.0_dp  ! Derived constants, dummy values
   end type model_config
 
-end module model_config_mod
-
-module model_mod
-  use precision
-  use model_config_mod
-  use grid_config_mod
-  implicit none
-  real(dp), parameter :: PI = 4.0_dp * atan(1.0_dp)
-  integer, parameter :: NEQ = 3      ! Number of equations/fields: r, phi, sigma
-  integer, save :: diag_unit = -1, fields_unit = -1, derivs_unit = -1
-  logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
-
-  private
-  public :: F, read_model_config_from_file, init_cond
-  public :: compute_diagnostics, write_output
-  public :: open_output_files, close_output_files
-  public :: NEQ
-
 contains
 
 !> Initialize physics configuration with derived constants
@@ -91,6 +73,29 @@ subroutine read_model_config_from_file(model_cfg, filename)
   ! Compute derived constants
   call init_model_config(model_cfg)
 end subroutine read_model_config_from_file
+
+end module model_config_mod
+
+module model_mod
+  use precision
+  use model_config_mod
+  use grid_config_mod
+  implicit none
+
+  integer, parameter  :: NEQ = 3      ! Number of equations/fields: r, phi, sigma
+
+  real(dp), parameter :: PI = 4.0_dp * atan(1.0_dp)
+
+  integer, save :: diag_unit = -1, fields_unit = -1, derivs_unit = -1
+  logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
+
+  private
+  public :: F, init_cond
+  public :: compute_diagnostics, write_output
+  public :: open_output_files, close_output_files
+  public :: NEQ
+
+contains
 
 !> Compute model-dependent diagnostics (mass, Ricci)
 subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)

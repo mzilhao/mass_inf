@@ -1,8 +1,8 @@
 program mass_inflation
   use precision
   use grid_config_mod,   only: grid_config, read_grid_config_from_file
-  use model_config_mod,  only: model_config
-  use model_mod,         only: NEQ, read_model_config_from_file, init_cond, open_output_files, write_output, close_output_files
+  use model_config_mod,  only: model_config, read_model_config_from_file
+  use model_mod,         only: NEQ, init_cond, open_output_files, write_output, close_output_files
   use evolve_wrapper,    only: step
   use utils,             only: startup, print_status
   use amr_mod,           only: refine_u_grid

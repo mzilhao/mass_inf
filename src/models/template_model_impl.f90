@@ -1,9 +1,8 @@
 ! Template model implementation
 ! Copy this file to create a new model and replace TODOs.
 ! Implement the stable API expected by callers:
-! - module model_config_mod: defines type(model_config)
+! - module model_config_mod: defines type(model_config), init_model_config, read_model_config_from_file
 ! - module model_mod: provides NEQ and routines:
-!     init_model_config, read_model_config_from_file,
 !     F, init_cond, compute_diagnostics,
 !     open_output_files, write_output, close_output_files
 
@@ -22,25 +21,6 @@ module model_config_mod
     ! Derived constants (example placeholders)
     real(dp) :: q2 = 0.0_dp, qq2 = 0.0_dp, qq = 0.0_dp
   end type model_config
-end module model_config_mod
-
-module model_mod
-  use precision
-  use model_config_mod
-  use grid_config_mod
-  implicit none
-
-  ! TODO: set number of equations/fields for your model
-  integer, parameter :: NEQ = 3
-
-  integer, save :: diag_unit = -1, fields_unit = -1, derivs_unit = -1
-  logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
-
-  private
-  public :: F, init_model_config, read_model_config_from_file, init_cond
-  public :: compute_diagnostics, write_output
-  public :: open_output_files, close_output_files
-  public :: NEQ
 
 contains
 
@@ -86,6 +66,28 @@ subroutine read_model_config_from_file(model_cfg, filename)
 
   call init_model_config(model_cfg)
 end subroutine read_model_config_from_file
+
+end module model_config_mod
+
+module model_mod
+  use precision
+  use model_config_mod
+  use grid_config_mod
+  implicit none
+
+  ! TODO: set number of equations/fields for your model
+  integer, parameter :: NEQ = 3
+
+  integer, save :: diag_unit = -1, fields_unit = -1, derivs_unit = -1
+  logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
+
+  private
+  public :: F, init_cond
+  public :: compute_diagnostics, write_output
+  public :: open_output_files, close_output_files
+  public :: NEQ
+
+contains
 
 ! Compute diagnostics (e.g., mass, Ricci). Placeholder returns zeros.
 subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)
