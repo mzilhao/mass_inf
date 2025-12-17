@@ -16,7 +16,6 @@ contains
 !! @param ya     Known y data points (array of size N)
 !! @return       Interpolated value at x
 function polint(x, xa, ya)
-  implicit none
   real(dp), intent(in) :: x
   real(dp), dimension(:), intent(in) :: xa, ya
   real(dp) :: polint
