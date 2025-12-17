@@ -3,8 +3,11 @@
 ## Quick Start
 
 ```bash
-# Run all regression cases (one .nml per case in this folder)
+# Run all regression cases for default model (rnld)
 make test
+
+# Run regression cases for a specific model (looks in test/<model>/)
+make MODEL=flat test
 
 # Regenerate references for all cases (after validating changes)
 make test-save-reference
@@ -12,8 +15,9 @@ make test-save-reference
 
 ## Layout
 
+- Per-model folders are required: put configs under `test/<model>/` and references alongside, e.g., `test/flat/D4_config00.nml` with `test/flat/D4_config00/`.
 - Each test case has:
-  - A config file in this folder, e.g., `D4_config00.nml`
+  - A config file `*.nml`
   - A reference folder with the same basename, e.g., `D4_config00/`, containing:
     - `fields.dat`       (u, r, phi, sigma)
     - `derivatives.dat`  (u, dr/du, dr/dv)

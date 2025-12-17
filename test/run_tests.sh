@@ -17,8 +17,18 @@ fi
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJ_DIR="$(dirname "$TEST_DIR")"
 BIN_DIR="$PROJ_DIR/bin"
-EXECUTABLE="$BIN_DIR/mass_inf"
-OUT_ROOT="$PROJ_DIR/TESTING"
+
+# Model selection (matches Makefile MODEL)
+MODEL="${MODEL:-rnld}"
+
+# Prefer model-suffixed binary; fall back to unsuffixed if present
+EXECUTABLE="$BIN_DIR/mass_inf-$MODEL"
+if [ ! -x "$EXECUTABLE" ] && [ -x "$BIN_DIR/mass_inf" ]; then
+    EXECUTABLE="$BIN_DIR/mass_inf"
+fi
+
+# Output root (per model to avoid clashes)
+OUT_ROOT="$PROJ_DIR/TESTING/$MODEL"
 
 # Mode: normal compare (default) or save references
 SAVE_REFERENCE=0
@@ -42,9 +52,22 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Discover test cases: require model-specific folder test/<model>
+CASE_ROOT="$TEST_DIR/$MODEL"
+if [ ! -d "$CASE_ROOT" ]; then
+    echo -e "${YELLOW}No test directory for model '$MODEL': $CASE_ROOT${NC}"
+    echo -e "${YELLOW}Add configs and references under test/$MODEL/ or choose a model with tests.${NC}"
+    exit 0
+fi
+
+# Print banner after resolving paths
 echo "=========================================="
 echo "  Mass Inflation - Regression Tests"
 echo "=========================================="
+echo "Model:       $MODEL"
+echo "Executable:  $EXECUTABLE"
+echo "Cases root:  $CASE_ROOT"
+echo "Output root: $OUT_ROOT"
 echo
 
 # Check if executable exists
@@ -62,16 +85,15 @@ compare_file() {
     python3 "$TEST_DIR/compare_numerical.py" "$ref_file" "$out_file" --rtol "$RTOL" --atol "$ATOL" --columns $columns
 }
 
-# Discover test cases: any *.nml in test directory root
 shopt -s nullglob
 cases=()
-for cfg in "$TEST_DIR"/*.nml; do
+for cfg in "$CASE_ROOT"/*.nml; do
     cases+=("$cfg")
 done
 shopt -u nullglob
 
 if [ ${#cases[@]} -eq 0 ]; then
-    echo -e "${YELLOW}No test configurations (*.nml) found in $TEST_DIR${NC}"
+    echo -e "${YELLOW}No test configurations (*.nml) found in $CASE_ROOT${NC}"
     exit 0
 fi
 
@@ -79,7 +101,9 @@ overall_status=0
 
 for cfg in "${cases[@]}"; do
     case_name="$(basename "$cfg" .nml)"
-    ref_dir="$TEST_DIR/$case_name"
+
+    # Reference directory sits alongside the config (either model-specific or root)
+    ref_dir="$(dirname "$cfg")/$case_name"
     out_dir="$OUT_ROOT/$case_name"
 
     echo "------------------------------------------"
@@ -94,6 +118,7 @@ for cfg in "${cases[@]}"; do
     rm -rf "$out_dir"
 
     echo "Running simulation..."
+    # Run from the per-model OUT_ROOT so outputs land under that tree
     if ! (cd "$OUT_ROOT" && "$EXECUTABLE" "$cfg" > /dev/null 2>&1); then
         echo -e "${RED}Execution failed for $case_name${NC}"
         overall_status=1
