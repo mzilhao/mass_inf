@@ -18,7 +18,7 @@ program mass_inflation
   real(dp), allocatable, dimension(:,:) :: h_v1
   real(dp), dimension(NEQ)              :: h_S, h_E, h_W, h_N
 
-  real(dp) :: u_cur, v_cur, reldiff_r = 0.0_dp
+  real(dp) :: u_cur, v_cur
   real(dp) :: du, dv, u_min, v_min, u_max, v_max
   real(dp) :: start_time_cpu
   integer  :: Nv, Nu, Nu_max
