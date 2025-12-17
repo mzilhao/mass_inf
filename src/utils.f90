@@ -1,4 +1,5 @@
 module utils_mod
+  use precision
   implicit none
   private
   public :: relative_difference, print_status, startup, trim_filename
@@ -37,23 +38,23 @@ end function trim_filename
 !! @param[in] val2
 !! @return 2 * |val1 - val2| / (|val1| + |val2|)
 pure function relative_difference(val1, val2) result(grad)
-  double precision, intent(in) :: val1, val2
-  double precision :: grad
-  double precision, parameter :: EPSILON_GUARD = 1.0d-16
+  real(dp), intent(in) :: val1, val2
+  real(dp) :: grad
+  real(dp), parameter :: EPSILON_GUARD = 1.0e-16_dp
 
   ! The factor of 2 normalizes the gradient relative to the average value.
-  grad = 2.0d0 * abs(val1 - val2) / (abs(val1) + abs(val2) + EPSILON_GUARD)
+  grad = 2.0_dp * abs(val1 - val2) / (abs(val1) + abs(val2) + EPSILON_GUARD)
 end function relative_difference
 
 
 !> Report progress to stdout: iteration, v, elapsed time, rate, min/max(r)
 subroutine print_status(iter, v_cur, v_initial, v_final, start_cpu, h_v0, next_idx, progress_stride, header_stride)
   integer, intent(in) :: iter, next_idx
-  double precision, intent(in) :: v_cur, v_initial, v_final, start_cpu
-  double precision, dimension(:,:), intent(in) :: h_v0
+  real(dp), intent(in) :: v_cur, v_initial, v_final, start_cpu
+  real(dp), dimension(:,:), intent(in) :: h_v0
   integer, intent(in) :: progress_stride, header_stride
 
-  double precision :: elapsed, rate, min_r, max_r
+  real(dp) :: elapsed, rate, min_r, max_r
   logical :: should_print, should_header
 
   if (progress_stride <= 0) return
@@ -74,15 +75,15 @@ subroutine print_status(iter, v_cur, v_initial, v_final, start_cpu, h_v0, next_i
   end if
 
   call cpu_time(elapsed)
-  elapsed = (elapsed - start_cpu)/60.0d0  ! convert to minutes
-  if (elapsed > 1.0d-9) then
+  elapsed = (elapsed - start_cpu)/60.0_dp  ! convert to minutes
+  if (elapsed > 1.0e-9_dp) then
     rate = (v_cur - v_initial) / elapsed
   else
-    rate = 0.0d0
+    rate = 0.0_dp
   end if
 
   ! this assumes that the r variable is stored in h_v0(:,1).
-  ! needs to be adapted adapt if that ever changes.
+  ! needs to be adapted if that ever changes.
   min_r = minval(h_v0(1:next_idx-1, 1))
   max_r = maxval(h_v0(1:next_idx-1, 1))
 
