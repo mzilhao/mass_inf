@@ -29,7 +29,7 @@ OBJECTS = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/%.o,$(SOURCES)) $(MODEL_OBJ)
 OBJECTS_DEBUG = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/debug_%.o,$(SOURCES)) $(MODEL_OBJ_DEBUG)
 
 # Phony targets
-.PHONY: all debug profile clean distclean test test-save-reference help rnld flat template models rnld-profile flat-profile rnld-debug flat-debug
+.PHONY: all debug profile clean distclean test help rnld flat template models rnld-profile flat-profile rnld-debug flat-debug
 
 # Default target
 all: $(BINARY)
@@ -106,7 +106,7 @@ clean:
 
 # Full cleanup
 distclean: clean
-	rm -f data.dat timing.log gprof.txt
+	rm -f timing.log gprof.txt
 	rm -rf TESTING
 
 # Run tests
@@ -129,11 +129,6 @@ models:
 	$(MAKE) --no-print-directory rnld
 	$(MAKE) --no-print-directory clean
 	$(MAKE) --no-print-directory flat
-
-# Save reference data
-test-save-reference: all
-	@echo "Saving current outputs as references for all test cases..."
-	@bash test/run_tests.sh --save-reference
 
 # Help
 help:

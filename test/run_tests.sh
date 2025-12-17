@@ -4,7 +4,6 @@
 #
 # This script runs the simulation and compares output against reference data
 # using numerical tolerances appropriate for floating-point computation.
-# Pass --save-reference to regenerate reference outputs for all cases.
 
 set -u  # Treat unset vars as error
 
@@ -29,13 +28,6 @@ fi
 
 # Output root (per model to avoid clashes)
 OUT_ROOT="$PROJ_DIR/TESTING/$MODEL"
-
-# Mode: normal compare (default) or save references
-SAVE_REFERENCE=0
-if [ "${1-}" = "--save-reference" ]; then
-    SAVE_REFERENCE=1
-    shift
-fi
 
 # Numerical tolerances
 RTOL="1e-5"  # Relative tolerance (0.001%)
@@ -135,15 +127,6 @@ for cfg in "${cases[@]}"; do
     done
     if [ "$missing" -ne 0 ]; then
         overall_status=1
-        continue
-    fi
-
-    if [ "$SAVE_REFERENCE" -eq 1 ]; then
-        mkdir -p "$ref_dir"
-        cp "$out_dir/fields.dat" "$ref_dir/fields.dat"
-        cp "$out_dir/derivatives.dat" "$ref_dir/derivatives.dat"
-        cp "$out_dir/diagnostics.dat" "$ref_dir/diagnostics.dat"
-        echo -e "${GREEN}✓ Reference updated: $case_name${NC}"
         continue
     fi
 

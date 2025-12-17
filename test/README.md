@@ -8,9 +8,6 @@ make test
 
 # Run regression cases for a specific model (looks in test/<model>/)
 make MODEL=flat test
-
-# Regenerate references for all cases (after validating changes)
-make test-save-reference
 ```
 
 ## Layout
