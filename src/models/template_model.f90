@@ -14,6 +14,8 @@ module model_config_mod
 
   ! TODO: customize configuration fields for your physics
   type :: model_config
+    real(dp) :: q  = 0.1_dp              ! Electric charge
+    real(dp) :: m0 = 1.0_dp              ! Initial mass parameter
   end type model_config
 
 contains
@@ -26,12 +28,16 @@ subroutine load(model_cfg, filename)
 
   ! Local variables for namelist reading
   ! TODO
-  namelist /physics/
+  real(dp) :: q, m0
+  namelist /physics/ q, m0
 
   integer :: unit, ierr
 
   ! Initialize with type defaults
+  ! TODO
   model_cfg = model_config()
+  q         = model_cfg%q
+  m0        = model_cfg%m0
 
   ! Read namelist
   open(newunit=unit, file=filename, status='old', action='read', iostat=ierr)
@@ -50,6 +56,9 @@ subroutine load(model_cfg, filename)
 
   ! Update cfg with (possibly modified) namelist values
   ! TODO
+    model_cfg%q      = q
+    model_cfg%m0     = m0
+
 
 end subroutine load
 
