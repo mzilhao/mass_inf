@@ -95,16 +95,16 @@ program mass_inflation
   allocate(h_u0(Nv, NEQ))
   allocate(h_v0(Nu_max, NEQ))
   allocate(h_v1(Nu_max, NEQ))
-  h_u0 = 0.0d0
-  h_v0 = 0.0d0
-  h_v1 = 0.0d0
+  h_u0 = 0.0_dp
+  h_v0 = 0.0_dp
+  h_v1 = 0.0_dp
 
   ! Array 'u' will hold all values of u on v slices. We start with
   ! a uniform grid, but this may change with AMR. Linked lists 'plus' and 'minus'
   ! help us navigate the non-uniform grid.
   allocate(u(Nu_max))
   allocate(plus(Nu_max), minus(Nu_max))
-  u = 0.0d0
+  u = 0.0_dp
   plus  = 0
   minus = 0
 
