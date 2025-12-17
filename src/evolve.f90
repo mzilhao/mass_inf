@@ -2,9 +2,9 @@
 
 module evolve_wrapper_mod
   use precision
-  use pde_stepper_mod, only: pde_step
-  use model_config_mod
-  use model_mod, only: F
+  use pde_stepper_mod,  only: pde_step
+  use model_config_mod, only: model_config
+  use model_mod,        only: F
   implicit none
   private
   public :: step
