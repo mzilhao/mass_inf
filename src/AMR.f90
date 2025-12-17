@@ -1,27 +1,27 @@
 module amr_mod
   use precision
-  use polint_mod
-  use utils_mod, only: relative_difference
+  use polint_mod, only: polint
+  use utils_mod,  only: relative_difference
   implicit none
   private
   public :: refine_u_grid
 contains
 
-subroutine refine_u_grid(u, h_v0, h_W, h_S, j, next_idx, u_max, reldiff_max, plus, minus)
-  real(dp),          intent(inout) :: u(:)
-  real(dp),          intent(inout) :: h_v0(:,:)
-  real(dp),          intent(inout) :: h_W(:)
-  real(dp),          intent(in)    :: h_S(:)
-  integer,           intent(inout) :: j
-  integer,           intent(inout) :: next_idx
-  real(dp),          intent(in)    :: u_max
-  real(dp),          intent(in)    :: reldiff_max
-  integer,           intent(inout) :: plus(:), minus(:)
+subroutine refine_u_grid(u, plus, minus, h_v0, h_W, h_S, j, next_idx, u_max, reldiff_max)
+  real(dp), intent(inout) :: u(:)
+  integer,  intent(inout) :: plus(:), minus(:)
+  real(dp), intent(inout) :: h_v0(:,:)
+  real(dp), intent(inout) :: h_W(:)
+  real(dp), intent(in)    :: h_S(:)
+  integer,  intent(inout) :: j
+  integer,  intent(inout) :: next_idx
+  real(dp), intent(in)    :: u_max
+  real(dp), intent(in)    :: reldiff_max
 
   real(dp) :: reldiff_r
   integer  :: jm1, jm2, jm3, jp1
   integer  :: k, neq
-  real(dp), dimension(5) :: interp_x, interp_y
+  real(dp), dimension(5)  :: interp_x, interp_y
 
   neq = size(h_W)
 

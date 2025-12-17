@@ -155,7 +155,9 @@ program mass_inflation
       h_W(:) = h_v0(j, :)    ! h(u + du, v)
 
       ! Adaptive Mesh Refinement
-      if (grid_cfg%AMR) call refine_u_grid(u, h_v0, h_W, h_S, j, next_idx, u_max, grid_cfg%reldiff_max, plus, minus)
+      if (grid_cfg%AMR)  &
+        call refine_u_grid(u, plus, minus, h_v0, h_W, h_S, j, next_idx, u_max, &
+                           grid_cfg%reldiff_max)
 
       du = u(j) - u(minus(j))  ! local du may change during AMR
 
