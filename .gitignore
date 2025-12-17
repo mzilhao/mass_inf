@@ -19,6 +19,9 @@ obj/
 # Test outputs (temporary files, not reference data)
 TESTING/
 
+# Simulation data
+runs/
+
 # Editor/OS cruft
 *~
 *.swp
