@@ -1,4 +1,4 @@
-! Dummy model implementation
+! Flat model implementation
 ! Required public API (to be implemented by any model):
 ! - module model_config_mod
 !     type(model_config)
@@ -11,7 +11,7 @@
 !     subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, model_cfg)
 !     subroutine close_output_files()
 !
-! This dummy implementation compiles and runs, returning trivial results.
+! This flat-space implementation compiles and runs, returning trivial results.
 ! Use it as a reference for the minimal set of functions a model must provide.
 module model_config_mod
   use precision
@@ -21,7 +21,7 @@ module model_config_mod
 
   !> Model configuration type - encapsulates all physics parameters
   type :: model_config
-    real(dp) :: A = 0.0_dp               ! Dummy parameter for now
+    real(dp) :: A = 0.0_dp               ! Flat model parameter
     real(dp) :: q = 0.95_dp              ! Electric charge
     real(dp) :: m0 = 1.0_dp              ! Initial mass parameter
   end type model_config

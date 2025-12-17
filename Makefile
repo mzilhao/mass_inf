@@ -28,7 +28,7 @@ OBJECTS = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/%.o,$(SOURCES)) $(MODEL_OBJ)
 OBJECTS_DEBUG = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/debug_%.o,$(SOURCES)) $(MODEL_OBJ_DEBUG)
 
 # Phony targets
-.PHONY: all debug profile clean distclean test test-save-reference help rnld dummy template models
+.PHONY: all debug profile clean distclean test test-save-reference help rnld flat template models
 
 # Default target
 all: $(BINARY)
@@ -101,8 +101,8 @@ test: all
 rnld:
 	$(MAKE) MODEL=rnld BIN_SUFFIX=-rnld all
 
-dummy:
-	$(MAKE) MODEL=dummy BIN_SUFFIX=-dummy all
+flat:
+	$(MAKE) MODEL=flat BIN_SUFFIX=-flat all
 
 template:
 	$(MAKE) MODEL=template BIN_SUFFIX=-template all
@@ -112,7 +112,7 @@ models:
 	$(MAKE) clean
 	$(MAKE) rnld
 	$(MAKE) clean
-	$(MAKE) dummy
+	$(MAKE) flat
 	$(MAKE) clean
 	$(MAKE) template
 
@@ -129,9 +129,9 @@ help:
 	@echo "  make profile   - Build with gprof instrumentation"
 	@echo "  make test      - Run regression tests"
 	@echo "  make rnld      - Build RNLD model -> bin/mass_inf-rnld"
-	@echo "  make dummy     - Build dummy model -> bin/mass_inf-dummy"
+	@echo "  make flat      - Build flat model -> bin/mass_inf-flat"
 	@echo "  make template  - Build template model -> bin/mass_inf-template"
-	@echo "  make models    - Build all models (rnld, dummy, template)"
+	@echo "  make models    - Build all models (rnld, flat, template)"
 	@echo "  make clean     - Remove build artifacts"
 	@echo "  make distclean - Remove all generated files"
 	@echo "  make help      - Show this message"
