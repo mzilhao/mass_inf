@@ -29,7 +29,7 @@ OBJECTS = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/%.o,$(SOURCES)) $(MODEL_OBJ)
 OBJECTS_DEBUG = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/debug_%.o,$(SOURCES)) $(MODEL_OBJ_DEBUG)
 
 # Phony targets
-.PHONY: all debug profile clean distclean test help rnld flat template models rnld-profile flat-profile rnld-debug flat-debug
+.PHONY: all debug profile clean distclean test help rnld flat template models
 
 # Default target
 all: $(BINARY)
@@ -44,25 +44,11 @@ debug: $(BINDIR)/mass_inf-$(MODEL)-debug
 $(BINDIR)/mass_inf-$(MODEL)-debug: $(OBJECTS_DEBUG) | $(BINDIR)
 	$(FC) $(FCFLAGS_DEBUG) -o $@ $^ $(LDFLAGS)
 
-# Debug convenience targets per model (name: <model>-debug)
-rnld-debug:
-	$(MAKE) --no-print-directory MODEL=rnld debug
-
-flat-debug:
-	$(MAKE) --no-print-directory MODEL=flat debug
-
 # Profile build (model-suffixed)
 profile: clean $(BINDIR)/mass_inf-$(MODEL)-prof
 
 $(BINDIR)/mass_inf-$(MODEL)-prof: $(OBJECTS) | $(BINDIR)
 	$(FC) $(FCFLAGS_PROFILE) -o $@ $^ -pg
-
-# Profile convenience targets per model (name: <model>-profile)
-rnld-profile:
-	$(MAKE) --no-print-directory MODEL=rnld profile
-
-flat-profile:
-	$(MAKE) --no-print-directory MODEL=flat profile
 
 # Compile release objects (top-level sources)
 $(OBJDIR)/%.o: $(SRCDIR)/%.f90 | $(OBJDIR)
@@ -100,13 +86,13 @@ $(OBJDIR)/debug_AMR.o: $(OBJDIR)/debug_precision.o $(OBJDIR)/debug_grid_config.o
 $(BINDIR) $(OBJDIR):
 	mkdir -p $@
 
-# Clean build artifacts
+# Clean build artifacts (keep binaries)
 clean:
-	rm -rf $(OBJDIR) $(BINDIR) *.mod *.MOD gmon.out
+	rm -rf $(OBJDIR) *.mod *.MOD gmon.out
 
-# Full cleanup
+# Full cleanup (removes binaries and all generated files)
 distclean: clean
-	rm -f timing.log gprof.txt
+	rm -rf $(BINDIR) timing.log gprof.txt
 	rm -rf TESTING
 
 # Run tests
@@ -120,10 +106,7 @@ rnld:
 flat:
 	$(MAKE) --no-print-directory MODEL=flat BIN_SUFFIX=-flat all
 
-template:
-	$(MAKE) --no-print-directory MODEL=template BIN_SUFFIX=-template all
-
-# Build supported models (template is excluded; it's a scaffolding file)
+# Build supported models
 models:
 	$(MAKE) --no-print-directory clean
 	$(MAKE) --no-print-directory rnld
@@ -133,18 +116,15 @@ models:
 # Help
 help:
 	@echo "Available targets:"
-	@echo "  make               - Build optimized binary for default model ($(MODEL)) -> bin/mass_inf-$(MODEL)"
-	@echo "  make rnld          - Build RNLD model -> bin/mass_inf-rnld"
-	@echo "  make flat          - Build flat model -> bin/mass_inf-flat"
-	@echo "  make template      - Build template model -> bin/mass_inf-template (scaffolding only)"
-	@echo "  make models        - Build supported models (rnld, flat)"
-	@echo "  make debug         - Build with debug flags and checks -> bin/mass_inf-$(MODEL)-debug"
-	@echo "  make profile       - Build with gprof instrumentation -> bin/mass_inf-$(MODEL)-prof"
-	@echo "  make rnld-debug    - Debug RNLD model -> bin/mass_inf-rnld-debug"
-	@echo "  make flat-debug    - Debug flat model -> bin/mass_inf-flat-debug"
-	@echo "  make rnld-profile  - Profile RNLD model -> bin/mass_inf-rnld-prof"
-	@echo "  make flat-profile  - Profile flat model -> bin/mass_inf-flat-prof"
-	@echo "  make test          - Run regression tests"
-	@echo "  make clean         - Remove build artifacts"
-	@echo "  make distclean     - Remove all generated files"
-	@echo "  make help          - Show this message"
+	@echo "  make                         - Build optimized binary for default model ($(MODEL)) -> bin/mass_inf-$(MODEL)"
+	@echo "  make MODEL=<model>           - Build given model (e.g., make MODEL=flat)"
+	@echo "  make rnld                    - Build RNLD model -> bin/mass_inf-rnld"
+	@echo "  make flat                    - Build flat model -> bin/mass_inf-flat"
+	@echo "  make models                  - Build supported models (rnld, flat)"
+	@echo "  make [MODEL=<model>] debug   - Build model with debug flags -> bin/mass_inf-$(MODEL)-debug"
+	@echo "  make [MODEL=<model>] profile - Build model with gprof instrumentation -> bin/mass_inf-$(MODEL)-prof"
+	@echo "  make test                    - Run regression tests for default model"
+	@echo "  make [MODEL=<model>] test    - Run tests for specific model"
+	@echo "  make clean                   - Remove build artifacts"
+	@echo "  make distclean               - Remove all generated files"
+	@echo "  make help                    - Show this message"
