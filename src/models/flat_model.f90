@@ -19,7 +19,7 @@ module model_config_mod
   private
   public :: model_config, load
 
-  !> Model configuration type - encapsulates all physics parameters
+  !> Model configuration type - encapsulates all model parameters
   type :: model_config
     real(dp) :: A = 0.0_dp               ! Flat model parameter
     real(dp) :: q = 0.95_dp              ! Electric charge
@@ -28,14 +28,14 @@ module model_config_mod
 
 contains
 
-! Read &physics namelist (optional) and compute derived constants
+! Read &model namelist (optional) and compute derived constants
 subroutine load(model_cfg, filename)
   type(model_config), intent(out) :: model_cfg
   character(len=*), intent(in)    :: filename
 
   ! Local variables for namelist reading
   real(dp) :: A, q, m0
-  namelist /physics/ A, q, m0
+  namelist /model/ A, q, m0
 
   integer :: unit, ierr
 
@@ -52,9 +52,9 @@ subroutine load(model_cfg, filename)
     call exit(1)
   end if
 
-  read(unit, nml=physics, iostat=ierr)
+  read(unit, nml=model, iostat=ierr)
   if (ierr /= 0) then
-    write(*, '(a,a,a)') 'Error: could not read &physics namelist from "', trim(filename), '"'
+    write(*, '(a,a,a)') 'Error: could not read &model namelist from "', trim(filename), '"'
     close(unit)
     call exit(1)
   end if

@@ -8,7 +8,7 @@ program mass_inflation
   use amr_mod,            only: refine_u_grid
   implicit none
 
-  ! Parameters for the physical model and grid configuration
+  ! Parameters for the model and grid configuration
   type(model_config)  :: model_cfg
   type(grid_config)   :: grid_cfg
 
@@ -70,7 +70,7 @@ program mass_inflation
   ! Output directory name (parameter file basename without extension)
   out_dir = trim_filename(param_file)
 
-  ! Read simulation and physics configurations
+  ! Read grid and model configurations
   call load_grid(grid_cfg, param_file)
   call load_model(model_cfg, param_file)
 
@@ -131,7 +131,7 @@ program mass_inflation
   ! Start the main integration loop. i is the step in 'v'; j the step in 'u'.
   ! At each step we assume we are at the point (u,v).
   do i = 1, Nv - 1
-    ! Print progress to stdout (cadence controlled by simulation config)
+    ! Print progress to stdout (cadence controlled by grid config)
     call print_status(i, v_cur, v_min, v_max, start_time_cpu, h_v0, next_idx, &
                       grid_cfg%progress_stride, grid_cfg%progress_header_stride)
 

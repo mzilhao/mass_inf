@@ -1,7 +1,7 @@
-!> Simulation Configuration Module
+!> Grid Configuration Module
 !! 
-!! Encapsulates all numerical/integration parameters independent of physics.
-!! This allows swapping physics implementations (models/) while keeping
+!! Encapsulates all numerical/integration parameters independent of the model.
+!! This allows swapping model implementations (models/) while keeping
 !! the numerical solver infrastructure.
 
 module grid_config_mod
@@ -40,8 +40,8 @@ module grid_config_mod
 
 contains
 
-!> Read simulation configuration from a namelist file
-!! Reads &simulation namelist and computes derived grid dimensions.
+!> Read grid configuration from a namelist file
+!! Reads &grid namelist and computes derived grid dimensions.
 !! Falls back to defaults for parameters not specified in the file.
 subroutine load(grid_cfg, filename)
   type(grid_config), intent(out) :: grid_cfg
@@ -53,7 +53,7 @@ subroutine load(grid_cfg, filename)
   character(len=256) :: output_base_dir
   logical :: AMR
   integer :: progress_stride, progress_header_stride
-  namelist /simulation/ u_min, v_min, u_max, v_max, du, dv, AMR, reldiff_max, &
+  namelist /grid/ u_min, v_min, u_max, v_max, du, dv, AMR, reldiff_max, &
                         output_du, output_dv, output_base_dir, progress_stride, progress_header_stride
 
   integer :: unit, ierr
@@ -82,9 +82,9 @@ subroutine load(grid_cfg, filename)
     call exit(1)
   end if
 
-  read(unit, nml=simulation, iostat=ierr)
+  read(unit, nml=grid, iostat=ierr)
   if (ierr /= 0) then
-    write(*, '(a,a,a)') 'Error: could not read &simulation namelist from "', trim(filename), '"'
+    write(*, '(a,a,a)') 'Error: could not read &grid namelist from "', trim(filename), '"'
     close(unit)
     call exit(1)
   end if

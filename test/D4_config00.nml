@@ -1,24 +1,4 @@
-&physics
-  ! Spacetime dimension (usually 4)
-  D = 4
-  
-  ! Cosmological constant
-  lambda = 0.0d0
-  
-  ! Scalar field amplitude
-  A = 0.0d0
-  
-  ! Scalar field width
-  Delta = 1.0d0
-  
-  ! Electric charge parameter
-  q = 0.95d0
-  
-  ! Black hole mass parameter
-  m0 = 1.0d0
-/
-
-&simulation
+&grid
   ! Integration domain bounds
   u_min = 0.0d0
   v_min = 5.0d0
@@ -42,4 +22,24 @@
   ! Progress reporting cadence (stdout)
   progress_stride = 100
   progress_header_stride = 5000
+/
+
+&model
+  ! Spacetime dimension (usually 4)
+  D = 4
+  
+  ! Cosmological constant
+  lambda = 0.0d0
+  
+  ! Scalar field amplitude
+  A = 0.0d0
+  
+  ! Scalar field width
+  Delta = 1.0d0
+  
+  ! Electric charge parameter
+  q = 0.95d0
+  
+  ! Black hole mass parameter
+  m0 = 1.0d0
 /

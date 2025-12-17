@@ -4,7 +4,7 @@ module model_config_mod
   private
   public :: model_config, load
 
-  !> Model configuration type - encapsulates all physics parameters
+  !> Model configuration type - encapsulates all model parameters
   type :: model_config
     integer  :: D = 4                    ! Spacetime dimension
     real(dp) :: lambda = 0.0_dp          ! Cosmological constant
@@ -19,7 +19,7 @@ module model_config_mod
 contains
 
 !====================================================================================
-!> Initialize physics configuration with derived constants
+!> Initialize model configuration with derived constants
 subroutine init_model_config(model_cfg)
   type(model_config), intent(inout) :: model_cfg
   model_cfg%q2 = model_cfg%q * model_cfg%q
@@ -28,8 +28,8 @@ subroutine init_model_config(model_cfg)
 end subroutine init_model_config
 
 !====================================================================================
-!> Read physics configuration from a namelist file
-!! Reads &physics namelist and computes derived constants.
+!> Read model configuration from a namelist file
+!! Reads &model namelist and computes derived constants.
 !! Reads from an existing namelist file.
 subroutine load(model_cfg, filename)
   type(model_config), intent(out) :: model_cfg
@@ -38,7 +38,7 @@ subroutine load(model_cfg, filename)
   ! Local variables for namelist reading
   integer  :: D
   real(dp) :: lambda, A, Delta, q, m0
-  namelist /physics/ D, lambda, A, Delta, q, m0
+  namelist /model/ D, lambda, A, Delta, q, m0
 
   integer :: unit, ierr
 
@@ -58,9 +58,9 @@ subroutine load(model_cfg, filename)
     call exit(1)
   end if
 
-  read(unit, nml=physics, iostat=ierr)
+  read(unit, nml=model, iostat=ierr)
   if (ierr /= 0) then
-    write(*, '(a,a,a)') 'Error: could not read &physics namelist from "', trim(filename), '"'
+    write(*, '(a,a,a)') 'Error: could not read &model namelist from "', trim(filename), '"'
     close(unit)
     call exit(1)
   end if

@@ -21,7 +21,7 @@ module model_config_mod
 contains
 
 !====================================================================================
-! Read &physics namelist and initialize model_cfg
+! Read &model namelist and initialize model_cfg
 subroutine load(model_cfg, filename)
   type(model_config), intent(out) :: model_cfg
   character(len=*), intent(in)    :: filename
@@ -29,7 +29,7 @@ subroutine load(model_cfg, filename)
   ! Local variables for namelist reading
   ! TODO
   real(dp) :: q, m0
-  namelist /physics/ q, m0
+  namelist /model/ q, m0
 
   integer :: unit, ierr
 
@@ -46,9 +46,9 @@ subroutine load(model_cfg, filename)
     call exit(1)
   end if
 
-  read(unit, nml=physics, iostat=ierr)
+  read(unit, nml=model, iostat=ierr)
   if (ierr /= 0) then
-    write(*, '(a,a,a)') 'Error: could not read &physics namelist from "', trim(filename), '"'
+    write(*, '(a,a,a)') 'Error: could not read &model namelist from "', trim(filename), '"'
     close(unit)
     call exit(1)
   end if
