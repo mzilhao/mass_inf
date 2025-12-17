@@ -14,7 +14,7 @@ module grid_config_mod
   !! Stores all grid, integration, and AMR parameters
   type :: grid_config
     ! Integration domain bounds
-    real(dp) :: u_min = 0.0_dp, v_min = 5.0_dp   ! Domain start
+    real(dp) :: u_min = 0.0_dp,  v_min = 5.0_dp  ! Domain start
     real(dp) :: u_max = 30.0_dp, v_max = 10.0_dp ! Domain end
 
     ! Integration step sizes
@@ -53,8 +53,10 @@ subroutine load(grid_cfg, filename)
   character(len=256) :: output_base_dir
   logical :: AMR
   integer :: progress_stride, progress_header_stride
-  namelist /grid/ u_min, v_min, u_max, v_max, du, dv, AMR, reldiff_max, &
-                        output_du, output_dv, output_base_dir, progress_stride, progress_header_stride
+  namelist /grid/ u_min, v_min, u_max, v_max, du, dv, &
+                  AMR, reldiff_max, &
+                  output_du, output_dv, output_base_dir, &
+                  progress_stride, progress_header_stride
 
   integer :: unit, ierr
 
