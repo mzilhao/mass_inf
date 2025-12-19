@@ -28,12 +28,6 @@
 /
 
 &model
-  ! Spacetime dimension (usually 4)
-  D = 4
-
-  ! Cosmological constant
-  lambda = 0.0
-
   ! Scalar field amplitude
   A = 0.0
 
