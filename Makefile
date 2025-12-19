@@ -29,7 +29,7 @@ OBJECTS = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/%.o,$(SOURCES)) $(MODEL_OBJ)
 OBJECTS_DEBUG = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/debug_%.o,$(SOURCES)) $(MODEL_OBJ_DEBUG)
 
 # Phony targets
-.PHONY: all debug profile clean distclean test help rnld flat template models
+.PHONY: all debug profile clean distclean test help rnld template models
 
 # Default target
 all: $(BINARY)
@@ -103,28 +103,22 @@ test: all
 rnld:
 	$(MAKE) --no-print-directory MODEL=rnld BIN_SUFFIX=-rnld all
 
-flat:
-	$(MAKE) --no-print-directory MODEL=flat BIN_SUFFIX=-flat all
-
-# Build supported models
+# Build the following models
 models:
 	$(MAKE) --no-print-directory clean
 	$(MAKE) --no-print-directory rnld
 	$(MAKE) --no-print-directory clean
-	$(MAKE) --no-print-directory flat
 
 # Help
 help:
 	@echo "Available targets:"
-	@echo "  make                         - Build optimized binary for default model ($(MODEL)) -> bin/mass_inf-$(MODEL)"
+	@echo "  make                         - Build binary for default model ($(MODEL)) -> bin/mass_inf-$(MODEL)"
 	@echo "  make MODEL=<model>           - Build given model (e.g., make MODEL=flat)"
 	@echo "  make rnld                    - Build RNLD model -> bin/mass_inf-rnld"
-	@echo "  make flat                    - Build flat model -> bin/mass_inf-flat"
-	@echo "  make models                  - Build supported models (rnld, flat)"
-	@echo "  make [MODEL=<model>] debug   - Build model with debug flags -> bin/mass_inf-$(MODEL)-debug"
-	@echo "  make [MODEL=<model>] profile - Build model with gprof instrumentation -> bin/mass_inf-$(MODEL)-prof"
-	@echo "  make test                    - Run regression tests for default model"
-	@echo "  make [MODEL=<model>] test    - Run tests for specific model"
+	@echo "  make models                  - Build several models"
+	@echo "  make [MODEL=<model>] debug   - Build model with debug flags -> bin/mass_inf-<model>-debug"
+	@echo "  make [MODEL=<model>] profile - Build model with gprof instrumentation -> bin/mass_inf-<model>-prof"
+	@echo "  make [MODEL=<model>] test    - Run regression tests"
 	@echo "  make clean                   - Remove build artifacts"
 	@echo "  make distclean               - Remove all generated files"
 	@echo "  make help                    - Show this message"
