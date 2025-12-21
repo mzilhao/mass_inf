@@ -1,18 +1,3 @@
-! Flat model implementation
-! Required public API (to be implemented by any model):
-! - module model_config_mod
-!     type(model_config)
-!     subroutine load(model_cfg, filename)
-! - module model_mod
-!     integer, parameter :: NEQ
-!     subroutine F(dhduv, h, dhdu, dhdv, model_cfg)
-!     subroutine init_cond(h_u0, h_v0, grid_cfg, model_cfg)
-!     subroutine open_output_files(out_dir)
-!     subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, model_cfg)
-!     subroutine close_output_files()
-!
-! This flat-space implementation compiles and runs, returning trivial results.
-! Use it as a reference for the minimal set of functions a model must provide.
 module model_config_mod
   use precision
   implicit none
@@ -28,7 +13,8 @@ module model_config_mod
 
 contains
 
-! Read &model namelist (optional) and compute derived constants
+!====================================================================================
+!> Read model configuration from a namelist file
 subroutine load(model_cfg, filename)
   type(model_config), intent(out) :: model_cfg
   character(len=*), intent(in)    :: filename
@@ -82,10 +68,11 @@ module model_mod
   integer, save :: fields_unit = -1, derivs_unit = -1
   logical, save :: fields_open = .false., derivs_open = .false.
 
+
   private
   public :: NEQ
   public :: F, init_cond
-  public :: open_output_files, write_output, close_output_files
+  public :: open_output_files, write_output, write_constraints, close_output_files
 
 contains
 
@@ -94,8 +81,6 @@ contains
 !! Inputs: h (field values), dhdu, dhdv (derivatives)
 !! Output: dhduv (mixed derivatives)
 subroutine F(dhduv, h, dhdu, dhdv, model_cfg)
-  implicit none
-
   real(dp), dimension(NEQ), intent(out) :: dhduv
   real(dp), dimension(NEQ), intent(in)  :: h, dhdu, dhdv
   type(model_config), intent(in)        :: model_cfg
@@ -113,8 +98,6 @@ end subroutine F
 !> Initialize boundary conditions at u=u_min and v=v_min
 !! Returns: h_u0 (IC along u_min), h_v0 (IC along v_min)
 subroutine init_cond(h_u0, h_v0, grid_cfg, model_cfg)
-  implicit none
-
   real(dp), dimension(:,:), intent(inout) :: h_u0, h_v0
   type(grid_config),  intent(in)          :: grid_cfg
   type(model_config), intent(in)          :: model_cfg
@@ -226,5 +209,18 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, mode
   write(fields_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3)
   write(derivs_unit, '(7e16.8)') u_P, dhdu_P(2), dhdv_P(2)
 end subroutine write_output
+
+!====================================================================================
+!> Compute and write constraint violations.
+!!
+!! In this model this does not make sense to compute, so this routine is a no-op
+subroutine write_constraints(h_v, u, v_val, grid_cfg, model_cfg)
+  real(dp), intent(in)             :: h_v(:,:)
+  real(dp), intent(in)             :: u(:)
+  real(dp), intent(in)             :: v_val
+  type(grid_config), intent(in)    :: grid_cfg
+  type(model_config), intent(in)   :: model_cfg
+
+end subroutine write_constraints
 
 end module model_mod

@@ -92,13 +92,14 @@ module model_mod
 
   real(dp), parameter :: PI = 4.0_dp * atan(1.0_dp)
 
-  integer, save :: diag_unit = -1, fields_unit = -1, derivs_unit = -1
+  integer, save :: diag_unit = -1, fields_unit = -1, derivs_unit = -1, constraints_unit = -1
   logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
+  logical, save :: constraints_open = .false.
 
   private
   public :: NEQ
   public :: F, init_cond
-  public :: open_output_files, write_output, close_output_files
+  public :: open_output_files, write_output, write_constraints, close_output_files
 
 contains
 
@@ -107,8 +108,6 @@ contains
 !! Inputs: h (field values), dhdu, dhdv (derivatives)
 !! Output: dhduv (mixed derivatives)
 subroutine F(dhduv, h, dhdu, dhdv, model_cfg)
-  implicit none
-
   real(dp), dimension(NEQ), intent(out) :: dhduv
   real(dp), dimension(NEQ), intent(in)  :: h, dhdu, dhdv
   type(model_config), intent(in)        :: model_cfg
@@ -141,8 +140,6 @@ end subroutine F
 !> Initialize boundary conditions at u=u_min and v=v_min
 !! Returns: h_u0 (IC along u_min), h_v0 (IC along v_min)
 subroutine init_cond(h_u0, h_v0, grid_cfg, model_cfg)
-  implicit none
-
   real(dp), dimension(:,:), intent(inout) :: h_u0, h_v0
   type(grid_config),  intent(in)          :: grid_cfg
   type(model_config), intent(in)          :: model_cfg
@@ -215,32 +212,37 @@ end subroutine init_cond
 !====================================================================================
 !> Open all output files
 subroutine open_output_files(out_dir)
-  character(len=*), intent(in)      :: out_dir
+  character(len=*), intent(in) :: out_dir
 
-  if (diag_open .or. fields_open .or. derivs_open) call close_output_files()
+  if (diag_open .or. fields_open .or. derivs_open .or. constraints_open) call close_output_files()
 
-  open(newunit=fields_unit, file=trim(out_dir)//'/fields.dat', status='replace')
-  open(newunit=diag_unit, file=trim(out_dir)//'/diagnostics.dat', status='replace')
-  open(newunit=derivs_unit, file=trim(out_dir)//'/derivatives.dat', status='replace')
+  open(newunit=fields_unit,      file=trim(out_dir)//'/fields.dat',      status='replace')
+  open(newunit=diag_unit,        file=trim(out_dir)//'/diagnostics.dat', status='replace')
+  open(newunit=derivs_unit,      file=trim(out_dir)//'/derivatives.dat', status='replace')
+  open(newunit=constraints_unit, file=trim(out_dir)//'/constraints.dat', status='replace')
 
-  write(fields_unit, '(a)') '# Columns: u, r, phi, sigma'
-  write(diag_unit,   '(a)') '# Columns: u, mass, Ricci'
-  write(derivs_unit, '(a)') '# Columns: u, drdu, drdv'
+  write(fields_unit,      '(a)') '# Columns: u, r, phi, sigma'
+  write(diag_unit,        '(a)') '# Columns: u, mass, Ricci'
+  write(derivs_unit,      '(a)') '# Columns: u, drdu, drdv'
+  write(constraints_unit, '(a)') '# Columns: u, Guu'
 
-  fields_open = .true.
-  diag_open   = .true.
-  derivs_open = .true.
+  fields_open      = .true.
+  diag_open        = .true.
+  derivs_open      = .true.
+  constraints_open = .true.
 end subroutine open_output_files
 
 !====================================================================================
 !> Close all output files if open
 subroutine close_output_files()
-  if (fields_open .and. fields_unit > 0) close(fields_unit)
-  if (diag_open   .and. diag_unit   > 0) close(diag_unit)
-  if (derivs_open .and. derivs_unit > 0) close(derivs_unit)
-  fields_unit = -1; fields_open = .false.
-  diag_unit   = -1; diag_open   = .false.
-  derivs_unit = -1; derivs_open = .false.
+  if (fields_open      .and. fields_unit      > 0) close(fields_unit)
+  if (diag_open        .and. diag_unit        > 0) close(diag_unit)
+  if (derivs_open      .and. derivs_unit      > 0) close(derivs_unit)
+  if (constraints_open .and. constraints_unit > 0) close(constraints_unit)
+  fields_unit      = -1; fields_open      = .false.
+  diag_unit        = -1; diag_open        = .false.
+  derivs_unit      = -1; derivs_open      = .false.
+  constraints_unit = -1; constraints_open = .false.
 end subroutine close_output_files
 
 !====================================================================================
@@ -314,7 +316,6 @@ end subroutine write_output
 !====================================================================================
 !> Compute model-dependent diagnostics (mass, Ricci)
 subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)
-  implicit none
   real(dp), intent(out)               :: mass, ricci
   real(dp), dimension(:), intent(in)  :: h, dhdu, dhdv, dhduv
   type(model_config), intent(in)      :: model_cfg
@@ -335,5 +336,68 @@ subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)
         )                                                                 &
         + 4*exp(-2*h(3))*dhduv(3) + 4*(D-2)*dhduv(1)*exp(-2*h(3)) / h(1)
 end subroutine compute_diagnostics
+
+!====================================================================================
+!> Compute and write constraint violations.
+!!
+!! This routine needs to be called at v = const slices since it needs 2nd derivatives in u,
+!! and it's therefore simpler to to implement with access to all u grid points at the given v.
+!! The constraint violation along u = const slices is not computed here, since it would require
+!! storing the entire v-grid in memory.
+!! To avoid complications with AMR, we do only the non-AMR part of the grid,
+!! i.e., up to the original Nu.
+subroutine write_constraints(h_v, u, v_val, grid_cfg, model_cfg)
+  real(dp), intent(in)             :: h_v(:,:)
+  real(dp), intent(in)             :: u(:)
+  real(dp), intent(in)             :: v_val
+  type(grid_config), intent(in)    :: grid_cfg
+  type(model_config), intent(in)   :: model_cfg
+
+  real(dp) :: temp, r, r_uu, r_u, sigma_u, phi_u, du, Guu
+  integer  :: j, Nu, D
+  logical  :: v_ok
+  real(dp), save :: last_v_marked_val = -1.0e99_dp
+
+  D  = model_cfg%D
+
+  Nu = size(u)
+  ! this is the grid spacing of the original grid, before AMR
+  du = grid_cfg%du
+
+  if (.not. constraints_open) error stop 'write_output: output files not open'
+
+  ! As above, check output condition first, before doing any work.
+  ! Output condition: check if (v - v_min)/output_dv are near integers.
+  if (grid_cfg%output_dv > 0.0_dp) then
+    temp = abs((v_val - grid_cfg%v_min) / grid_cfg%output_dv)
+    v_ok = abs(temp - nint(temp)) < 1.0e-6_dp
+  else
+    v_ok = .true.
+  end if
+
+  if (.not. v_ok) return
+
+  ! For this output, we compute everything at the slice v = v_val
+  if (abs(v_val - last_v_marked_val) > 0.5_dp * grid_cfg%output_dv) then
+    write(constraints_unit, '(a)')
+    write(constraints_unit, '(a,f10.6)') '# v = ', v_val
+    last_v_marked_val = v_val
+  end if
+
+
+  do j = 2, Nu - 1
+    r       = h_v(j, 1)
+    r_u     = (h_v(j+1, 1) - h_v(j-1, 1)) * 0.5_dp / du
+    sigma_u = (h_v(j+1, 2) - h_v(j-1, 2)) * 0.5_dp / du
+    phi_u   = (h_v(j+1, 3) - h_v(j-1, 3)) * 0.5_dp / du
+
+    r_uu    = (h_v(j+1, 1) - 2.0_dp*h_v(j, 1) + h_v(j-1, 1)) / (du*du)
+
+    Guu = (D-2)*r_uu - 2*(D-2)*r_u*sigma_u + 2*r*phi_u*phi_u
+
+    write(constraints_unit, '(7e16.8)') u(j), Guu
+  end do
+
+end subroutine write_constraints
 
 end module model_mod

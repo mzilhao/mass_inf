@@ -56,9 +56,8 @@ subroutine load(model_cfg, filename)
 
   ! Update cfg with (possibly modified) namelist values
   ! TODO
-    model_cfg%q      = q
-    model_cfg%m0     = m0
-
+  model_cfg%q      = q
+  model_cfg%m0     = m0
 
 end subroutine load
 
@@ -78,15 +77,13 @@ module model_mod
   private
   public :: NEQ
   public :: F, init_cond
-  public :: open_output_files, write_output, close_output_files
+  public :: open_output_files, write_output, write_constraints, close_output_files
 
 contains
 
 !====================================================================================
 ! PDE right-hand side: dhduv = F(h, dhdu, dhdv)
 subroutine F(dhduv, h, dhdu, dhdv, model_cfg)
-  implicit none
-
   real(dp), dimension(NEQ), intent(out) :: dhduv
   real(dp), dimension(NEQ), intent(in)  :: h, dhdu, dhdv
   type(model_config), intent(in)        :: model_cfg
@@ -138,5 +135,16 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, mode
 
   ! TODO
 end subroutine write_output
+
+!====================================================================================
+!> Compute and write constraint violations.
+subroutine write_constraints(h_v, u, v_val, grid_cfg, model_cfg)
+  real(dp), intent(in)             :: h_v(:,:)
+  real(dp), intent(in)             :: u(:)
+  real(dp), intent(in)             :: v_val
+  type(grid_config), intent(in)    :: grid_cfg
+  type(model_config), intent(in)   :: model_cfg
+
+end subroutine write_constraints
 
 end module model_mod
