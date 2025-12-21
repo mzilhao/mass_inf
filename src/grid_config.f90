@@ -13,6 +13,12 @@ module grid_config_mod
   !> Numerical grid configuration type
   !! Stores all grid, integration, and AMR parameters
   type :: grid_config
+    ! Base dir under which run folder is created ('' = CWD)
+    character(len=256) :: output_base_dir = ''
+
+    ! Whether to compute constraint equations during the evolution
+    logical  :: compute_constraints = .false.
+
     ! Integration domain bounds
     real(dp) :: u_min = 0.0_dp,  v_min = 5.0_dp  ! Domain start
     real(dp) :: u_max = 30.0_dp, v_max = 10.0_dp ! Domain end
@@ -27,7 +33,6 @@ module grid_config_mod
     ! Output sampling spacing (absolute values in domain units)
     real(dp) :: output_du = 0.05_dp              ! Write every this Δu
     real(dp) :: output_dv = 0.05_dp              ! Write every this Δv
-    character(len=256) :: output_base_dir = ''   ! Base dir under which run folder is created ('' = CWD)
 
     ! Progress reporting cadence (stdout)
     integer :: progress_stride = 100
@@ -51,18 +56,20 @@ subroutine load(grid_cfg, filename)
   real(dp) :: u_min, v_min, u_max, v_max, du, dv, reldiff_max
   real(dp) :: output_du, output_dv
   character(len=256) :: output_base_dir
-  logical :: AMR
+  logical :: AMR, compute_constraints
   integer :: progress_stride, progress_header_stride
-  namelist /grid/ u_min, v_min, u_max, v_max, du, dv, &
+  namelist /grid/ output_base_dir, compute_constraints, &
+                  u_min, v_min, u_max, v_max, du, dv, &
                   AMR, reldiff_max, &
-                  output_du, output_dv, output_base_dir, &
+                  output_du, output_dv, &
                   progress_stride, progress_header_stride
 
   integer :: unit, ierr
 
   ! Initialize with type defaults
   grid_cfg = grid_config()
-
+  output_base_dir     = grid_cfg%output_base_dir
+  compute_constraints = grid_cfg%compute_constraints
   u_min = grid_cfg%u_min
   v_min = grid_cfg%v_min
   u_max = grid_cfg%u_max
@@ -73,7 +80,6 @@ subroutine load(grid_cfg, filename)
   reldiff_max = grid_cfg%reldiff_max
   output_du = grid_cfg%output_du
   output_dv = grid_cfg%output_dv
-  output_base_dir = grid_cfg%output_base_dir
   progress_stride        = grid_cfg%progress_stride
   progress_header_stride = grid_cfg%progress_header_stride
 
@@ -93,6 +99,8 @@ subroutine load(grid_cfg, filename)
   close(unit)
 
   ! Update grid_cfg with (possibly modified) namelist values
+  grid_cfg%output_base_dir     = output_base_dir
+  grid_cfg%compute_constraints = compute_constraints
   grid_cfg%u_min = u_min
   grid_cfg%v_min = v_min
   grid_cfg%u_max = u_max
@@ -103,7 +111,6 @@ subroutine load(grid_cfg, filename)
   grid_cfg%reldiff_max = reldiff_max
   grid_cfg%output_du = output_du
   grid_cfg%output_dv = output_dv
-  grid_cfg%output_base_dir = output_base_dir
   grid_cfg%progress_stride = progress_stride
   grid_cfg%progress_header_stride = progress_header_stride
 

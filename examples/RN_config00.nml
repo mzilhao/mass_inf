@@ -2,6 +2,9 @@
   ! Base directory for output files
   output_base_dir = './runs/'
 
+  ! Compute constraint violation at v = const slices during evolution
+  compute_constraints = .true.
+
   ! Integration domain bounds
   u_min = 0.0
   u_max = 30.0

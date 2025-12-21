@@ -2,7 +2,8 @@ program mass_inflation
   use precision
   use grid_config_mod,    only: grid_config, load_grid => load
   use model_config_mod,   only: model_config, load_model => load
-  use model_mod,          only: NEQ, init_cond, open_output_files, write_output, close_output_files
+  use model_mod,          only: NEQ, init_cond, open_output_files, write_output, write_constraints, &
+                                close_output_files
   use evolve_wrapper_mod, only: step
   use utils_mod,          only: startup, print_status, trim_filename
   use amr_mod,            only: refine_u_grid
@@ -119,14 +120,17 @@ program mass_inflation
   end do
   next_idx = Nu + 1
 
-
   ! Initialize boundary conditions
+  v_cur = v_min
   call init_cond(h_u0, h_v0, grid_cfg, model_cfg)
+
+  ! Compute and print constraint violations at v = const slice.
+  if (grid_cfg%compute_constraints) then
+    call write_constraints(h_v0(1:Nu, :), u(1:Nu), v_cur, grid_cfg, model_cfg)
+  end if
 
   ! Start CPU timer
   call cpu_time(start_time_cpu)
-
-  v_cur = v_min
 
   ! Start the main integration loop. i is the step in 'v'; j the step in 'u'.
   ! At each step we assume we are at the point (u,v).
@@ -170,6 +174,13 @@ program mass_inflation
       j = plus(j)
       u_cur = u_cur + du
     end do ! do while in the u direction
+
+    if (grid_cfg%compute_constraints) then
+      ! Compute and print constraint violations at v = const slice.
+      ! To avoid complications with AMR, we do only the non-AMR part of the grid,
+      ! i.e., up to the original Nu.
+      call write_constraints(h_v1(1:Nu, :), u(1:Nu), v_cur, grid_cfg, model_cfg)
+    end if
 
     ! Copy active grid points from h_v1 back to h_v0 for the next v-step.
     ! Only copy rows 1 to next_idx (active points after AMR refinement) to avoid

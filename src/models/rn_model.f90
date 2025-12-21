@@ -16,8 +16,6 @@ contains
 
 !====================================================================================
 !> Read model configuration from a namelist file
-!! Reads &model namelist and computes derived constants.
-!! Reads from an existing namelist file.
 subroutine load(model_cfg, filename)
   type(model_config), intent(out) :: model_cfg
   character(len=*), intent(in)    :: filename
@@ -79,7 +77,7 @@ module model_mod
   private
   public :: NEQ
   public :: F, init_cond
-  public :: open_output_files, write_output, close_output_files
+  public :: open_output_files, write_output, write_constraints, close_output_files
 
 contains
 
@@ -188,7 +186,7 @@ subroutine open_output_files(out_dir)
   write(fields_unit,      '(a)') '# Columns: u, r, phi, sigma'
   write(diag_unit,        '(a)') '# Columns: u, mass, Ricci'
   write(derivs_unit,      '(a)') '# Columns: u, drdu, drdv'
-  write(constraints_unit, '(a)') '# Columns: u, Guu, Gvv'
+  write(constraints_unit, '(a)') '# Columns: u, Guu'
 
   fields_open      = .true.
   diag_open        = .true.
@@ -222,7 +220,7 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, mode
 
   real(dp), dimension(NEQ) :: h_P, dhdu_P, dhdv_P, dhduv_P
   logical  :: u_ok, v_ok
-  real(dp) :: temp, u_P, v_P, mass, ricci, Guu, Gvv
+  real(dp) :: temp, u_P, v_P, mass, ricci
 
   real(dp), save :: last_v_marked_val = -1.0e99_dp
 
@@ -254,14 +252,12 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, mode
 
   ! Write a new v-slice block if v_val is more than one half output_dv away from last marked
   if (abs(v_val - last_v_marked_val) > 0.5_dp * grid_cfg%output_dv) then
-    write(fields_unit,      '(a)')
-    write(fields_unit,      '(a,f10.6)') '# v = ', v_P
-    write(diag_unit,        '(a)')
-    write(diag_unit,        '(a,f10.6)') '# v = ', v_P
-    write(derivs_unit,      '(a)')
-    write(derivs_unit,      '(a,f10.6)') '# v = ', v_P
-    write(constraints_unit, '(a)')
-    write(constraints_unit, '(a,f10.6)') '# v = ', v_P
+    write(fields_unit, '(a)')
+    write(fields_unit, '(a,f10.6)') '# v = ', v_P
+    write(diag_unit,   '(a)')
+    write(diag_unit,   '(a,f10.6)') '# v = ', v_P
+    write(derivs_unit, '(a)')
+    write(derivs_unit, '(a,f10.6)') '# v = ', v_P
     last_v_marked_val = v_val
   end if
 
@@ -271,13 +267,11 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, mode
 
   call F(dhduv_P, h_P, dhdu_P, dhdv_P, model_cfg)
   call compute_diagnostics(mass, ricci, h_P, dhdu_P, dhdv_P, dhduv_P, model_cfg)
-  call compute_constraints(Guu, Gvv, h_P, dhdu_P, dhdv_P, model_cfg)
 
   ! Write columnar output
-  write(fields_unit,      '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3) ! u, r, phi, sigma
-  write(diag_unit,        '(7e16.8)') u_P, mass, ricci            ! u, mass, Ricci
-  write(derivs_unit,      '(7e16.8)') u_P, dhdu_P(1), dhdv_P(1)   ! u, drdu, drdv
-  write(constraints_unit, '(7e16.8)') u_P, Guu, Gvv               ! u, Guu, Gvv
+  write(fields_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3) ! u, r, phi, sigma
+  write(diag_unit,   '(7e16.8)') u_P, mass, ricci            ! u, mass, Ricci
+  write(derivs_unit, '(7e16.8)') u_P, dhdu_P(1), dhdv_P(1)   ! u, drdu, drdv
 
 end subroutine write_output
 
@@ -305,16 +299,64 @@ subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)
 end subroutine compute_diagnostics
 
 !====================================================================================
-!> Compute constraints
-subroutine compute_constraints(Guu, Gvv, h, dhdu, dhdv, model_cfg)
-  real(dp), intent(out)               :: Guu, Gvv
-  real(dp), dimension(:), intent(in)  :: h, dhdu, dhdv
-  type(model_config), intent(in)      :: model_cfg
+!> Compute and write constraint violations.
+!!
+!! This routine needs to be called at v = const slices since it needs 2nd derivatives in u,
+!! and it's therefore simpler to to implement with access to all u grid points at the given v.
+!! The constraint violation along u = const slices is not computed here, since it would require
+!! storing the entire v-grid in memory.
+!! To avoid complications with AMR, we do only the non-AMR part of the grid,
+!! i.e., up to the original Nu.
+subroutine write_constraints(h_v, u, v_val, grid_cfg, model_cfg)
+  real(dp), intent(in)             :: h_v(:,:)
+  real(dp), intent(in)             :: u(:)
+  real(dp), intent(in)             :: v_val
+  type(grid_config), intent(in)    :: grid_cfg
+  type(model_config), intent(in)   :: model_cfg
 
-  real(dp) :: r_uu, r_vv ! TODO
+  real(dp) :: temp, r, r_uu, r_u, sigma_u, phi_u, du, Guu
+  integer  :: j, Nu
+  logical  :: v_ok
+  real(dp), save :: last_v_marked_val = -1.0e99_dp
 
-  Guu = r_uu - 2*dhdu(1)*dhdu(2) + h(1) * dhdu(3)*dhdu(3)
-  Gvv = r_vv - 2*dhdv(1)*dhdv(2) + h(1) * dhdv(3)*dhdv(3)
-end subroutine compute_constraints
+  Nu = size(u)
+  ! this is the grid spacing of the original grid, before AMR
+  du = grid_cfg%du
+
+  if (.not. constraints_open) error stop 'write_output: output files not open'
+
+  ! As above, check output condition first, before doing any work.
+  ! Output condition: check if (v - v_min)/output_dv are near integers.
+  if (grid_cfg%output_dv > 0.0_dp) then
+    temp = abs((v_val - grid_cfg%v_min) / grid_cfg%output_dv)
+    v_ok = abs(temp - nint(temp)) < 1.0e-6_dp
+  else
+    v_ok = .true.
+  end if
+
+  if (.not. v_ok) return
+
+  ! For this output, we compute everything at the slice v = v_val
+  if (abs(v_val - last_v_marked_val) > 0.5_dp * grid_cfg%output_dv) then
+    write(constraints_unit, '(a)')
+    write(constraints_unit, '(a,f10.6)') '# v = ', v_val
+    last_v_marked_val = v_val
+  end if
+
+
+  do j = 2, Nu - 1
+    r       = h_v(j, 1)
+    r_u     = (h_v(j+1, 1) - h_v(j-1, 1)) * 0.5_dp / du
+    sigma_u = (h_v(j+1, 2) - h_v(j-1, 2)) * 0.5_dp / du
+    phi_u   = (h_v(j+1, 3) - h_v(j-1, 3)) * 0.5_dp / du
+
+    r_uu    = (h_v(j+1, 1) - 2.0_dp*h_v(j, 1) + h_v(j-1, 1)) / (du*du)
+
+    Guu = r_uu - 2*r_u*sigma_u + r*phi_u*phi_u
+
+    write(constraints_unit, '(7e16.8)') u(j), Guu
+  end do
+
+end subroutine write_constraints
 
 end module model_mod
