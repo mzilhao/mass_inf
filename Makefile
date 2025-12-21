@@ -101,7 +101,7 @@ test: all
 
 # Convenience targets to build specific models with distinct binaries
 rnld:
-	$(MAKE) --no-print-directory MODEL=rnld BIN_SUFFIX=-rnld all
+	$(MAKE) --no-print-directory MODEL=rnld all
 
 # Build the following models
 models:
