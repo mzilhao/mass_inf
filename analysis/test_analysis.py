@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(analysis_dir))
 
 from read_data import MassInflationData
 
-run_dir = os.path.join(script_dir, 'D4_config00')
+run_dir = os.path.join(script_dir, 'RN_config00')
 
 reader = MassInflationData(run_dir)
 

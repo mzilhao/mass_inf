@@ -17,10 +17,6 @@ class MassInflationData:
         """
         self.folder = Path(folder)
         self.files = self._list_dat_files()
-        self.v  = self.get_v()
-        self.Nv = len(self.v)
-        self.u  = self.get_u()
-        self.Nu = len(self.u)
 
     def _list_dat_files(self):
         """Return sorted list of all .dat files in the given folder (as Path objects)."""
@@ -33,7 +29,7 @@ class MassInflationData:
         Parameters
         ----------
         filename : str or None, optional
-            Name of the .dat file to read v-slice values from. If None, use the first .dat file in the folder.
+            Name of the .dat file to read v-slice values from. If None, use the 'fields.dat' file.
 
         Returns
         -------
@@ -41,7 +37,7 @@ class MassInflationData:
             Sorted array of v-slice values present in the file.
         """
         if filename is None:
-            filename = self.files[0].name  # default to first .dat file
+            filename = "fields.dat"  # default to 'fields.dat' file
 
         filepath = self.folder / filename
         if not filepath.exists():
@@ -120,7 +116,7 @@ class MassInflationData:
         Parameters
         ----------
         filename : str or None, optional
-            Name of the .dat file to read from. If None, uses a default file (e.g., the first .dat file found).
+            Name of the .dat file to read from. If None, uses the 'fields.dat' file.
 
         Returns
         -------
@@ -128,14 +124,15 @@ class MassInflationData:
             Array of u values from the first v-slice.
         """
         if filename is None:
-            filename = self.files[0].name  # default to first .dat file
+            filename = "fields.dat"  # default to fields.dat file
 
         filepath = self.folder / filename
         if not filepath.exists():
             raise FileNotFoundError(f"File not found: {filepath}")
 
         u_all = self.read_file(filename, col=0)
-        Nv = self.Nv
+        v  = self.get_v(filename)
+        Nv = len(v)
         Nu = len(u_all) // Nv
         u  = u_all[0:Nu] # take only the first v-slice
 
@@ -167,10 +164,13 @@ class MassInflationData:
         corresponds to the v coordinate and the second to u.
         """
         data = self.read_file(filename, col=col)
-        data_reshaped = data.reshape(self.Nv, self.Nu)
 
-        u = self.u
-        v = self.v
+        u  = self.get_u(filename)
+        v  = self.get_v(filename)
+        Nu = len(u)
+        Nv = len(v)
+
+        data_reshaped = data.reshape(Nv, Nu)
 
         U, V = np.meshgrid(u, v, indexing='xy')
 
