@@ -22,6 +22,34 @@ class MassInflationData:
         """Return sorted list of all .dat files in the given folder (as Path objects)."""
         return sorted(Path(self.folder).glob('*.dat'))
 
+    def get_metadata(self, filename):
+        """
+        Return the metadata lines (header comments) from the specified .dat file.
+
+        Parameters
+        ----------
+        filename : str
+            Name of the .dat file to extract metadata from.
+
+        Returns
+        -------
+        list of str
+            List with the labels for each column.
+        """
+        filepath = self.folder / filename
+        if not filepath.exists():
+            raise FileNotFoundError(f"File not found: {filepath}")
+
+        with open(filepath) as f:
+            lines = f.readlines()
+
+        columns = []
+        for line in lines[0:10]:  # look in first 10 lines
+            if line.startswith('# Columns: '):
+                columns = line.split('Columns: ')[1].strip().split(', ')
+
+        return columns
+
     def get_v(self, filename=None):
         """
         Return the list of v-slice values from a given file, or from the "fields.dat" file if none is specified.
@@ -53,34 +81,6 @@ class MassInflationData:
                 v_values.append(v_val)
 
         return np.array(v_values)
-
-    def get_metadata(self, filename):
-        """
-        Return the metadata lines (header comments) from the specified .dat file.
-
-        Parameters
-        ----------
-        filename : str
-            Name of the .dat file to extract metadata from.
-
-        Returns
-        -------
-        list of str
-            List with the labels for each column.
-        """
-        filepath = self.folder / filename
-        if not filepath.exists():
-            raise FileNotFoundError(f"File not found: {filepath}")
-
-        with open(filepath) as f:
-            lines = f.readlines()
-
-        columns = []
-        for line in lines[0:10]:  # look in first 10 lines
-            if line.startswith('# Columns: '):
-                columns = line.split('Columns: ')[1].strip().split(', ')
-
-        return columns
 
     def read_file(self, filename, col=1):
         """
