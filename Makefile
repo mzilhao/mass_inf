@@ -113,7 +113,7 @@ models:
 help:
 	@echo "Available targets:"
 	@echo "  make                         - Build binary for default model ($(MODEL)) -> bin/mass_inf-$(MODEL)"
-	@echo "  make MODEL=<model>           - Build given model (e.g., make MODEL=flat)"
+	@echo "  make MODEL=<model>           - Build given model (e.g., make MODEL=rn)"
 	@echo "  make rnld                    - Build RNLD model -> bin/mass_inf-rnld"
 	@echo "  make models                  - Build several models"
 	@echo "  make [MODEL=<model>] debug   - Build model with debug flags -> bin/mass_inf-<model>-debug"
