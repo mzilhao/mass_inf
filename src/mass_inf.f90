@@ -124,11 +124,6 @@ program mass_inflation
   v_cur = v_min
   call init_cond(h_u0, h_v0, grid_cfg, model_cfg)
 
-  ! Compute and print constraint violations at v = const slice.
-  if (grid_cfg%compute_constraints) then
-    call write_constraints(h_v0(1:Nu, :), u(1:Nu), v_cur, grid_cfg, model_cfg)
-  end if
-
   ! Start CPU timer
   call cpu_time(start_time_cpu)
 
