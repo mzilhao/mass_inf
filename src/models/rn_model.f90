@@ -183,7 +183,7 @@ subroutine open_output_files(out_dir)
   open(newunit=derivs_unit,      file=trim(out_dir)//'/derivatives.dat', status='replace')
   open(newunit=constraints_unit, file=trim(out_dir)//'/constraints.dat', status='replace')
 
-  write(fields_unit,      '(a)') '# Columns: u, r, phi, sigma'
+  write(fields_unit,      '(a)') '# Columns: u, r, sigma, phi'
   write(diag_unit,        '(a)') '# Columns: u, mass, Ricci'
   write(derivs_unit,      '(a)') '# Columns: u, drdu, drdv'
   write(constraints_unit, '(a)') '# Columns: u, Guu'
@@ -269,7 +269,7 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, mode
   call compute_diagnostics(mass, ricci, h_P, dhdu_P, dhdv_P, dhduv_P, model_cfg)
 
   ! Write columnar output
-  write(fields_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3) ! u, r, phi, sigma
+  write(fields_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3) ! u, r, sigma, phi
   write(diag_unit,   '(7e16.8)') u_P, mass, ricci            ! u, mass, Ricci
   write(derivs_unit, '(7e16.8)') u_P, dhdu_P(1), dhdv_P(1)   ! u, drdu, drdv
 
@@ -311,7 +311,7 @@ subroutine write_constraints(h_v, u, v_val, grid_cfg, model_cfg)
   real(dp), intent(in)             :: h_v(:,:)
   real(dp), intent(in)             :: u(:)
   real(dp), intent(in)             :: v_val
-  type(grid_config), intent(in)    :: grid_cfg
+  type(grid_config),  intent(in)   :: grid_cfg
   type(model_config), intent(in)   :: model_cfg
 
   real(dp) :: temp, r, r_uu, r_u, sigma_u, phi_u, du, Guu
@@ -346,10 +346,11 @@ subroutine write_constraints(h_v, u, v_val, grid_cfg, model_cfg)
 
   do j = 2, Nu - 1
     r       = h_v(j, 1)
+    ! first derivatives
     r_u     = (h_v(j+1, 1) - h_v(j-1, 1)) * 0.5_dp / du
     sigma_u = (h_v(j+1, 2) - h_v(j-1, 2)) * 0.5_dp / du
     phi_u   = (h_v(j+1, 3) - h_v(j-1, 3)) * 0.5_dp / du
-
+    ! second derivative
     r_uu    = (h_v(j+1, 1) - 2.0_dp*h_v(j, 1) + h_v(j-1, 1)) / (du*du)
 
     Guu = r_uu - 2*r_u*sigma_u + r*phi_u*phi_u
