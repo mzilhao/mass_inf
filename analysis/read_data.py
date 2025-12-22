@@ -6,6 +6,7 @@ import numpy as np
 
 class MassInflationData:
     """Minimal reader for mass_inf ASCII output files."""
+
     def __init__(self, folder):
         """
         Read mass_inf data output.
@@ -17,6 +18,11 @@ class MassInflationData:
         """
         self.folder = Path(folder)
         self.files = self._list_dat_files()
+        self.field_mapping = self._build_field_mapping()
+
+        print("Fields found in folder:")
+        for field, (fname, idx) in self.field_mapping.items():
+            print(f"  {field:12} -> {fname:20} [col {idx}]")
 
     def _list_dat_files(self):
         """Return sorted list of all .dat files in the given folder (as Path objects)."""
@@ -49,6 +55,26 @@ class MassInflationData:
                 columns = line.split('Columns: ')[1].strip().split(', ')
 
         return columns
+
+    def _build_field_mapping(self):
+        """
+        Build a mapping from field names to (filename, column_index) for all .dat files in the folder.
+
+        Returns
+        -------
+        dict
+            Dictionary mapping field name to (filename, column_index).
+        """
+        mapping = {}
+        for file in self.files:
+            columns = self.get_metadata(file.name)
+            for idx, field in enumerate(columns):
+                if field == 'u':
+                    continue  # skip u coordinate
+                elif field in mapping:
+                    print(f"Warning: Field '{field}' found in multiple files. Overwriting previous entry {mapping[field]} with ({file.name}, {idx})")
+                mapping[field] = (file.name, idx)
+        return mapping
 
     def get_v(self, filename=None):
         """
@@ -155,7 +181,7 @@ class MassInflationData:
             2D array of u coordinates (meshgrid, shape (Nv, Nu)).
         V : ndarray
             2D array of v coordinates (meshgrid, shape (Nv, Nu)).
-        data_reshaped : ndarray
+        data : ndarray
             2D array of the selected data column, reshaped to (Nv, Nu)
 
         Notes
@@ -175,3 +201,38 @@ class MassInflationData:
         U, V = np.meshgrid(u, v, indexing='xy')
 
         return U, V, data_reshaped
+
+    def get_field(self, field_name):
+        """
+        Retrieve the data array for a specific field by its name.
+
+        Parameters
+        ----------
+        field_name : str
+            The name of the field to retrieve (e.g., 'r', 'mass', 'drdu').
+
+        Returns
+        -------
+        U : ndarray
+            2D array of u coordinates (meshgrid, shape (Nv, Nu)).
+        V : ndarray
+            2D array of v coordinates (meshgrid, shape (Nv, Nu)).
+        data : ndarray
+            2D array of the selected field's data, reshaped to (Nv, Nu).
+
+        Raises
+        ------
+        ValueError
+            If the field name is not found in any .dat file in the folder.
+
+        Notes
+        -----
+        Note that the returned arrays have shape (Nv, Nu), ie the first index
+        corresponds to the v coordinate and the second to u.
+        """
+
+        if field_name not in self.field_mapping:
+            raise ValueError(f"Field '{field_name}' not found in any .dat file.")
+
+        filename, col_idx = self.field_mapping[field_name]
+        return self.get_data(filename, col=col_idx)
