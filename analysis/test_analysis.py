@@ -15,10 +15,12 @@ run_dir = os.path.join(script_dir, 'RN_config00')
 
 reader = MassInflationData(run_dir)
 
-U,V,R = reader.get_data('fields.dat', col=1)
+U,V,R = reader.get_field('r')
 
-_,_,drdu = reader.get_data('derivatives.dat', col=1)
-_,_,drdv = reader.get_data('derivatives.dat', col=2)
+_,_,drdu = reader.get_field('drdu')
+_,_,drdv = reader.get_field('drdv')
+
+U_Guu, V_Guu, Guu = reader.get_field('Guu')
 
 
 plt.figure()
