@@ -6,8 +6,9 @@ module model_config_mod
 
   !> Model configuration type - encapsulates all model parameters
   type :: model_config
-    real(dp) :: A = 0.0_dp               ! Flat model parameter
-    real(dp) :: q = 0.95_dp              ! Electric charge
+    real(dp) :: A = 0.0_dp               ! Scalar field amplitude
+    real(dp) :: Delta = 1.0_dp           ! Scalar field width
+    real(dp) :: q  = 0.95_dp             ! Electric charge
     real(dp) :: m0 = 1.0_dp              ! Initial mass parameter
   end type model_config
 
@@ -20,16 +21,17 @@ subroutine load(model_cfg, filename)
   character(len=*), intent(in)    :: filename
 
   ! Local variables for namelist reading
-  real(dp) :: A, q, m0
-  namelist /model/ A, q, m0
+  real(dp) :: A, Delta, q, m0
+  namelist /model/ A, Delta, q, m0
 
   integer :: unit, ierr
 
   ! Initialize with type defaults
   model_cfg = model_config()
-  A         = model_cfg%A
-  q         = model_cfg%q
-  m0        = model_cfg%m0
+  A      = model_cfg%A
+  Delta  = model_cfg%Delta
+  q      = model_cfg%q
+  m0     = model_cfg%m0
 
   ! Read namelist
   open(newunit=unit, file=filename, status='old', action='read', iostat=ierr)
@@ -48,6 +50,7 @@ subroutine load(model_cfg, filename)
 
   ! Update cfg with (possibly modified) namelist values
   model_cfg%A      = A
+  model_cfg%Delta  = Delta
   model_cfg%q      = q
   model_cfg%m0     = m0
 
@@ -65,9 +68,10 @@ module model_mod
 
   integer, parameter  :: NEQ = 3      ! Number of equations/fields: r, phi, sigma
 
+  real(dp), parameter :: Pi = 4.0_dp * atan(1.0_dp)
+
   integer, save :: fields_unit = -1, derivs_unit = -1
   logical, save :: fields_open = .false., derivs_open = .false.
-
 
   private
   public :: NEQ
@@ -85,12 +89,13 @@ subroutine F(dhduv, h, dhdu, dhdv, model_cfg)
   real(dp), dimension(NEQ), intent(in)  :: h, dhdu, dhdv
   type(model_config), intent(in)        :: model_cfg
 
-  ! h(1) = r, h(2) = phi, h(3) = sigma
+  ! h(1) = r, h(2) = sigma, h(3) = phi
   dhduv(1) = 0.0_dp
 
-  dhduv(2) = 1.0_dp/ h(1) * (dhdv(1)*dhdu(2) + dhdu(1)*dhdv(2))
+  dhduv(2) = 0.0_dp
 
-  dhduv(3) = 0.0_dp
+  dhduv(3) = -1.0_dp / h(1) * (dhdv(1)*dhdu(3) + dhdu(1)*dhdv(3))
+
 
 end subroutine F
 
@@ -102,26 +107,47 @@ subroutine init_cond(h_u0, h_v0, grid_cfg, model_cfg)
   type(grid_config),  intent(in)          :: grid_cfg
   type(model_config), intent(in)          :: model_cfg
 
+  ! Local variables
   integer  :: i
-  real(dp) :: u, r00, ru0
+  real(dp) :: u, v
+  real(dp) :: r00, sigma_0, ru0, v0, v1
+  real(dp) :: A, Delta, q, m0
 
-  r00 = grid_cfg%v_min
-  ru0 = 0.5_dp / r00 * (model_cfg%m0 - 0.5_dp * model_cfg%q**2 / r00 - 1.0_dp)
+  ! Extract config values
+  A      = model_cfg%A
+  Delta  = model_cfg%Delta
+  m0     = model_cfg%m0
+  q      = model_cfg%q
+  v0     = grid_cfg%v_min
 
-  ! r = v along u_min; phi = 0; sigma = 0
-  do i = 1, grid_cfg%Nv
-    h_u0(i, 1) = grid_cfg%v_min + (i-1) * grid_cfg%dv
-    h_u0(i, 2) = 0.0_dp
-    h_u0(i, 3) = 0.0_dp
-  end do
+  r00     = v0
+  sigma_0 = -0.5_dp * log(2.0_dp)
+  ru0     = 0.25_dp * (2.0_dp / r00 * (m0 - 0.5_dp*q*q/r00) - 1.0_dp)
+
+  v1 = v0 + Delta
 
   ! Boundary conditions at v = v_min
   do i = 1, grid_cfg%Nu
     u = grid_cfg%u_min + (i-1) * grid_cfg%du
     h_v0(i, 1) = r00 + u * ru0  ! r(u,v_min)
-    h_v0(i, 2) = 0.0_dp
-    h_v0(i, 3) = 0.0_dp
+    h_v0(i, 2) = sigma_0        ! sigma(u,v_min)
+    h_v0(i, 3) = 0.0_dp         ! phi(u,v_min)
   end do
+
+  ! Boundary conditions at u = u_min
+  do i = 1, grid_cfg%Nv
+    v = v0 + (i-1) * grid_cfg%dv
+    h_u0(i, 1) = v           ! r(u_min,v)
+    h_u0(i, 2) = sigma_0     ! sigma(r_umin,v)
+
+    if (v <= v0 + Delta) then
+      ! phi(r_umin,v)
+      h_u0(i, 3) = A/(4*Pi) * (2*Pi*(v-v0) - Delta*sin(2*Pi*(v - v0)/Delta))
+    else
+      h_u0(i, 3) = 0.5_dp * A * Delta
+    end if
+  end do
+
 end subroutine init_cond
 
 !====================================================================================
@@ -134,7 +160,7 @@ subroutine open_output_files(out_dir)
   open(newunit=fields_unit, file=trim(out_dir)//'/fields.dat', status='replace')
   open(newunit=derivs_unit, file=trim(out_dir)//'/derivatives.dat', status='replace')
 
-  write(fields_unit, '(a)') '# Columns: u, r, phi, sigma'
+  write(fields_unit, '(a)') '# Columns: u, r, sigma, phi'
   write(derivs_unit, '(a)') '# Columns: u, dphidu, dphidv'
 
   fields_open = .true.
@@ -207,7 +233,7 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, mode
   dhdv_P = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
 
   write(fields_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3)
-  write(derivs_unit, '(7e16.8)') u_P, dhdu_P(2), dhdv_P(2)
+  write(derivs_unit, '(7e16.8)') u_P, dhdu_P(3), dhdv_P(3)
 end subroutine write_output
 
 !====================================================================================
