@@ -19,10 +19,13 @@ class MassInflationData:
         self.folder = Path(folder)
         self.files = self._list_dat_files()
         self.field_mapping = self._build_field_mapping()
+        print(self.__repr__())
 
-        print("Fields found in folder:")
+    def __repr__(self):
+        lines = ["Fields found in folder:"]
         for field, (fname, idx) in self.field_mapping.items():
-            print(f"  {field:12} -> {fname:20} [col {idx}]")
+            lines.append(f"  {field:12} -> {fname:20} [col {idx}]")
+        return "\n".join(lines)
 
     def _list_dat_files(self):
         """Return sorted list of all .dat files in the given folder (as Path objects)."""
@@ -236,3 +239,7 @@ class MassInflationData:
 
         filename, col_idx = self.field_mapping[field_name]
         return self.get_data(filename, col=col_idx)
+
+    def __getitem__(self, key):
+        """Allow dictionary-like access to fields by name."""
+        return self.get_field(key)
