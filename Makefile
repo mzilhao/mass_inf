@@ -11,7 +11,7 @@ BINDIR = bin
 OBJDIR = obj
 
 # Model selection (compile-time)
-MODEL ?= rnld
+MODEL ?= rn
 MODELDIR = $(SRCDIR)/models
 MODEL_SRC = $(MODELDIR)/$(MODEL)_model.f90
 MODEL_OBJ = $(OBJDIR)/model_mod.o
@@ -29,7 +29,7 @@ OBJECTS = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/%.o,$(SOURCES)) $(MODEL_OBJ)
 OBJECTS_DEBUG = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/debug_%.o,$(SOURCES)) $(MODEL_OBJ_DEBUG)
 
 # Phony targets
-.PHONY: all debug profile clean distclean test help rnld template models
+.PHONY: all debug profile clean distclean test help rn template models
 
 # Default target
 all: $(BINARY)
@@ -100,13 +100,13 @@ test: all
 	@./test/run_tests.sh
 
 # Convenience targets to build specific models with distinct binaries
-rnld:
-	$(MAKE) --no-print-directory MODEL=rnld all
+rn:
+	$(MAKE) --no-print-directory MODEL=rn all
 
 # Build the following models
 models:
 	$(MAKE) --no-print-directory clean
-	$(MAKE) --no-print-directory rnld
+	$(MAKE) --no-print-directory MODEL=rn
 	$(MAKE) --no-print-directory clean
 
 # Help
@@ -114,7 +114,7 @@ help:
 	@echo "Available targets:"
 	@echo "  make                         - Build binary for default model ($(MODEL)) -> bin/mass_inf-$(MODEL)"
 	@echo "  make MODEL=<model>           - Build given model (e.g., make MODEL=rn)"
-	@echo "  make rnld                    - Build RNLD model -> bin/mass_inf-rnld"
+	@echo "  make rn                      - Build RN model -> bin/mass_inf-rn"
 	@echo "  make models                  - Build several models"
 	@echo "  make [MODEL=<model>] debug   - Build model with debug flags -> bin/mass_inf-<model>-debug"
 	@echo "  make [MODEL=<model>] profile - Build model with gprof instrumentation -> bin/mass_inf-<model>-prof"
