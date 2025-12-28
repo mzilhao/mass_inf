@@ -17,8 +17,12 @@ TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJ_DIR="$(dirname "$TEST_DIR")"
 BIN_DIR="$PROJ_DIR/bin"
 
-# Model selection (matches Makefile MODEL)
-MODEL="${MODEL:-rnld}"
+# Model selection (must be set by Makefile or environment)
+if [ -z "${MODEL:-}" ]; then
+    echo -e "${RED}Error: MODEL variable not set. Please run with 'make test MODEL=<model>' or set MODEL in the environment.${NC}"
+    exit 1
+fi
+MODEL="$MODEL"
 
 # Prefer model-suffixed binary; fall back to unsuffixed if present
 EXECUTABLE="$BIN_DIR/mass_inf-$MODEL"

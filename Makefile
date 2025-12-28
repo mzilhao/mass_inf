@@ -95,9 +95,23 @@ distclean: clean
 	rm -rf $(BINDIR) timing.log gprof.txt
 	rm -rf TESTING
 
-# Run tests
-test: all
-	@./test/run_tests.sh
+# Run tests for all models with benchmark data in test/<model>
+tests:
+	@models=$$(find test -mindepth 1 -maxdepth 1 -type d -exec basename {} \;); \
+	for m in $$models; do \
+		if ls test/$$m/*.nml 1> /dev/null 2>&1; then \
+			echo "Running tests for model: $$m"; \
+			$(MAKE) --no-print-directory MODEL=$$m test_one; \
+		fi; \
+	done
+
+# Run tests for a single model (user-facing, uses default MODEL if not set)
+test:
+	$(MAKE) --no-print-directory test_one
+
+# Run tests for a single model (internal)
+test_one: all
+	@MODEL=$(MODEL) ./test/run_tests.sh
 
 # Convenience targets to build specific models with distinct binaries
 rn:
@@ -118,7 +132,8 @@ help:
 	@echo "  make models                  - Build several models"
 	@echo "  make [MODEL=<model>] debug   - Build model with debug flags -> bin/mass_inf-<model>-debug"
 	@echo "  make [MODEL=<model>] profile - Build model with gprof instrumentation -> bin/mass_inf-<model>-prof"
-	@echo "  make [MODEL=<model>] test    - Run regression tests"
+	@echo "  make [MODEL=<model>] test    - Run regression tests for the given model"
+	@echo "  make tests                   - Run regression tests for all models with benchmark data"
 	@echo "  make clean                   - Remove build artifacts"
 	@echo "  make distclean               - Remove all generated files"
 	@echo "  make help                    - Show this message"
