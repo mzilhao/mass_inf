@@ -25,7 +25,7 @@ program mass_inflation
   integer  :: Nv, Nu, Nu_max
   integer  :: i, j, jm1, next_idx
 
-  integer, parameter :: N_PICARD_ITERATIONS = 4
+  integer, parameter :: N_PICARD_ITERATIONS = 10
 
   ! IO and file management
   character(len=256) :: out_dir, param_file, arg, prog_name

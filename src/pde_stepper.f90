@@ -90,6 +90,11 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter, tol)
     ! print *, "Picard iteration ", j, ": max_err = ", max_err
     if (max_err < tolerance) exit picard_loop
 
+    ! Warn if last iteration and not converged
+    if (j == n_iter) then
+      print *, 'WARNING: Picard iterations did not converge, max_err =', max_err
+    end if
+
   end do picard_loop
 
 end subroutine pde_step
