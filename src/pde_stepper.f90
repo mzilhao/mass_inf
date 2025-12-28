@@ -41,7 +41,7 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter, tol)
 
   integer  :: j, neq
   real(dp) :: max_err, tolerance
-  real(dp), dimension(size(h_S)) :: h_P, dhdu_P, dhdv_P, dhduv_P, dhduv_P_new
+  real(dp), dimension(size(h_S)) :: h_P, dhdu_P, dhdv_P, dhduv_P, h_N_old
 
   ! Set convergence tolerance for the Picard iterations
   tolerance = 1.0e-8_dp
@@ -71,22 +71,25 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter, tol)
 
   ! PICARD ITERATIONS: Refine solution
   picard_loop: do j = 1, n_iter
+    ! Store previous h_N for convergence check later
+    h_N_old = h_N
+
     ! Recompute h_P and derivatives with refined h_N
     h_P = 0.25_dp * (h_N + h_S + h_E - h_W)
     dhdu_P = (h_W - h_S + h_N - h_E) * 0.5_dp / du
     dhdv_P = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
 
     ! Re-evaluate RHS at P
-    call rhs_func(dhduv_P_new, h_P, dhdu_P, dhdv_P)
-
-    ! Check convergence
-    max_err = maxval(abs(dhduv_P_new - dhduv_P))
-    ! print *, "Picard iteration ", j, ": max_err = ", max_err
-    if (max_err < tolerance) exit picard_loop
-    dhduv_P = dhduv_P_new
+    call rhs_func(dhduv_P, h_P, dhdu_P, dhdv_P)
 
     ! Update solution
-    h_N = h_W + h_E - h_S + dhduv_P_new * du * dv
+    h_N = h_W + h_E - h_S + dhduv_P * du * dv
+
+    ! Check convergence
+    max_err = maxval(abs(h_N_old - h_N))
+    ! print *, "Picard iteration ", j, ": max_err = ", max_err
+    if (max_err < tolerance) exit picard_loop
+
   end do picard_loop
 
 end subroutine pde_step
