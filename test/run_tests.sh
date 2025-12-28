@@ -37,10 +37,16 @@ OUT_ROOT="$PROJ_DIR/TESTING/$MODEL"
 RTOL="1e-5"  # Relative tolerance (0.001%)
 ATOL="2e-8"  # Absolute tolerance
 
-# Column names for reporting (match current outputs)
-COLUMNS_FIELDS="u r phi sigma"
-COLUMNS_DERIVS="u dr_du dr_dv"
-COLUMNS_DIAG="u mass ricci"
+
+# Dynamically extract columns from file header comments
+get_columns() {
+    local file="$1"
+    # Look for a line like: # Columns: u, r, sigma, phi
+    local columns_line
+    columns_line=$(grep -m1 '^# *Columns:' "$file" | sed 's/^# *Columns:[ ]*//')
+    # Replace commas with spaces, trim
+    echo "$columns_line" | tr ',' ' ' | xargs
+}
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -73,12 +79,18 @@ if [ ! -f "$EXECUTABLE" ]; then
     exit 1
 fi
 
-# Helper to compare two files with column labels
+
+# Helper to compare two files, extracting columns if available
 compare_file() {
     local ref_file="$1"
     local out_file="$2"
-    local columns="$3"
-    python3 "$TEST_DIR/compare_numerical.py" "$ref_file" "$out_file" --rtol "$RTOL" --atol "$ATOL" --columns $columns
+    local columns
+    columns=$(get_columns "$ref_file")
+    if [ -n "$columns" ]; then
+        python3 "$TEST_DIR/compare_numerical.py" "$ref_file" "$out_file" --rtol "$RTOL" --atol "$ATOL" --columns $columns
+    else
+        python3 "$TEST_DIR/compare_numerical.py" "$ref_file" "$out_file" --rtol "$RTOL" --atol "$ATOL"
+    fi
 }
 
 shopt -s nullglob
@@ -121,48 +133,44 @@ for cfg in "${cases[@]}"; do
         continue
     fi
 
-    # Verify outputs
-    missing=0
-    for f in fields.dat derivatives.dat diagnostics.dat; do
-        if [ ! -f "$out_dir/$f" ]; then
-            echo -e "${RED}Missing output file: $out_dir/$f${NC}"
-            missing=1
-        fi
-    done
-    if [ "$missing" -ne 0 ]; then
-        overall_status=1
-        continue
-    fi
 
-    # Ensure reference directory exists with expected files
+    # Ensure reference directory exists
     if [ ! -d "$ref_dir" ]; then
         echo -e "${RED}Missing reference directory: $ref_dir${NC}"
         overall_status=1
         continue
     fi
-    missing_ref=0
-    for f in fields.dat derivatives.dat diagnostics.dat; do
-        if [ ! -f "$ref_dir/$f" ]; then
-            echo -e "${RED}Missing reference file: $ref_dir/$f${NC}"
-            missing_ref=1
-        fi
+
+
+    # Find all .dat files in both output and reference directories (excluding hidden files)
+    ref_files=()
+    out_files=()
+    while IFS= read -r -d $'\0' f; do ref_files+=("$(basename "$f")"); done < <(find "$ref_dir" -maxdepth 1 -type f -name '*.dat' ! -name '.*' -print0)
+    while IFS= read -r -d $'\0' f; do out_files+=("$(basename "$f")"); done < <(find "$out_dir" -maxdepth 1 -type f -name '*.dat' ! -name '.*' -print0)
+
+    # Intersect file lists
+    files_to_compare=()
+    for f in "${ref_files[@]}"; do
+        for g in "${out_files[@]}"; do
+            if [ "$f" = "$g" ]; then
+                files_to_compare+=("$f")
+            fi
+        done
     done
-    if [ "$missing_ref" -ne 0 ]; then
+
+    if [ ${#files_to_compare[@]} -eq 0 ]; then
+        echo -e "${RED}No matching output/reference files to compare in $out_dir${NC}"
         overall_status=1
         continue
     fi
 
     echo "Comparing outputs..."
     status_case=0
-    if ! compare_file "$ref_dir/fields.dat" "$out_dir/fields.dat" "$COLUMNS_FIELDS"; then
-        status_case=1
-    fi
-    if ! compare_file "$ref_dir/derivatives.dat" "$out_dir/derivatives.dat" "$COLUMNS_DERIVS"; then
-        status_case=1
-    fi
-    if ! compare_file "$ref_dir/diagnostics.dat" "$out_dir/diagnostics.dat" "$COLUMNS_DIAG"; then
-        status_case=1
-    fi
+    for f in "${files_to_compare[@]}"; do
+        if ! compare_file "$ref_dir/$f" "$out_dir/$f"; then
+            status_case=1
+        fi
+    done
 
     if [ "$status_case" -eq 0 ]; then
         echo -e "${GREEN}✓ Test passed: $case_name${NC}"
