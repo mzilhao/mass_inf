@@ -57,7 +57,7 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter, tol)
   h_N = h_W + h_E - h_S
 
   ! Evaluate at midpoint P = (u+du/2, v+dv/2)
-  h_P = 0.25_dp * (h_N + h_S + h_E - h_W)
+  h_P = 0.25_dp * (h_N + h_S + h_E + h_W)
 
   ! Compute derivatives at P using centered differences
   dhdu_P = (h_W - h_S + h_N - h_E) * 0.5_dp / du
@@ -75,7 +75,7 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter, tol)
     h_N_old = h_N
 
     ! Recompute h_P and derivatives with refined h_N
-    h_P = 0.25_dp * (h_N + h_S + h_E - h_W)
+    h_P = 0.25_dp * (h_N + h_S + h_E + h_W)
     dhdu_P = (h_W - h_S + h_N - h_E) * 0.5_dp / du
     dhdv_P = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
 

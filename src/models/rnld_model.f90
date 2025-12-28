@@ -299,7 +299,7 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, mode
     last_v_marked_val = v_val
   end if
 
-  h_P    = 0.25_dp * (h_N + h_S + h_E - h_W)
+  h_P    = 0.25_dp * (h_N + h_S + h_E + h_W)
   dhdu_P = (h_W - h_S + h_N - h_E) * 0.5_dp / du
   dhdv_P = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
 
