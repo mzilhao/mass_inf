@@ -20,12 +20,6 @@ run_dir = os.path.join(script_dir, 'RN_config00')
 reader = MassInflationData(run_dir)
 
 # %%
-
-#_, _, drdu = reader['drdu']
-#_, _, drdv = reader['drdv']
-#U_Guu, V_Guu, Guu = reader['Guu']
-
-# %%
 U, V, R = reader['r']
 
 plt.figure()
@@ -53,15 +47,31 @@ U, V, f = reader['drdv']
 
 f_abs = np.abs(f)
 
+# Overlay: contour where |drdv| ~ 0
+epsilon = 1e-5  # Adjust as needed for your data's noise floor
 plt.figure()
-plt.contourf(V, U, np.log10(f_abs), levels=50, cmap='viridis')
+cf = plt.contourf(V, U, np.log10(f_abs), levels=50, cmap='viridis')
+# Overlay the zero contour
+contour_zero = plt.contour(V, U, f_abs, levels=[epsilon], colors='red', linewidths=2, linestyles='dashed')
 plt.xlabel('v')
 plt.ylabel('u')
-plt.colorbar()
-plt.title('r(u,v)')
+plt.colorbar(cf)
+plt.title(f'drdv(u,v) with |drdv|={epsilon} contour')
 plt.tight_layout()
 plt.show()
 
 # %%
-np.log10(f_abs).min(), np.log10(f_abs).max()
+U, V, f = reader['Guu']
+
+f_abs = np.abs(f)
+
+plt.figure()
+cf = plt.contourf(V, U, np.log10(f_abs), levels=50, cmap='viridis')
+plt.xlabel('v')
+plt.ylabel('u')
+plt.colorbar(cf)
+plt.title(f'Guu(u,v)')
+plt.tight_layout()
+plt.show()
+
 # %%
