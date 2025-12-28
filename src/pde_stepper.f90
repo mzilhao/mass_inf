@@ -30,7 +30,7 @@ contains
 !! @param[in]  dv          Step size in v direction
 !! @param[in]  rhs_func    Right-hand side F(dhduv, h, dhdu, dhdv)
 !! @param[in]  n_iter      Number of Picard iterations for refinement
-!! @param[in]  tol         Convergence tolerance (optional, default=1.0e-8)
+!! @param[in]  tol         Convergence tolerance (optional, default=1.0e-9)
 subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter, tol)
   real(dp), dimension(:), intent(out) :: h_N
   real(dp), dimension(:), intent(in)  :: h_S, h_E, h_W
@@ -44,7 +44,7 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter, tol)
   real(dp), dimension(size(h_S)) :: h_P, dhdu_P, dhdv_P, dhduv_P, h_N_old
 
   ! Set convergence tolerance for the Picard iterations
-  tolerance = 1.0e-8_dp
+  tolerance = 1.0e-9_dp
   if (present(tol)) tolerance = tol
 
   ! Validate input array sizes
@@ -56,33 +56,21 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter, tol)
   ! PREDICTOR: Zero-order approximation
   h_N = h_W + h_E - h_S
 
-  ! Evaluate at midpoint P = (u+du/2, v+dv/2)
-  h_P = 0.25_dp * (h_N + h_S + h_E + h_W)
-
-  ! Compute derivatives at P using centered differences
-  dhdu_P = (h_W - h_S + h_N - h_E) * 0.5_dp / du
-  dhdv_P = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
-
-  ! Evaluate RHS at P
-  call rhs_func(dhduv_P, h_P, dhdu_P, dhdv_P)
-
-  ! CORRECTOR: Update with RHS contribution
-  h_N = h_W + h_E - h_S + dhduv_P * du * dv
-
   ! PICARD ITERATIONS: Refine solution
   picard_loop: do j = 1, n_iter
-    ! Store previous h_N for convergence check later
-    h_N_old = h_N
-
-    ! Recompute h_P and derivatives with refined h_N
+    ! Evaluate at midpoint P = (u+du/2, v+dv/2)
     h_P = 0.25_dp * (h_N + h_S + h_E + h_W)
+    ! Compute derivatives at P using centered differences
     dhdu_P = (h_W - h_S + h_N - h_E) * 0.5_dp / du
     dhdv_P = (h_E - h_S + h_N - h_W) * 0.5_dp / dv
 
-    ! Re-evaluate RHS at P
+    ! Evaluate RHS at P
     call rhs_func(dhduv_P, h_P, dhdu_P, dhdv_P)
 
-    ! Update solution
+    ! Store previous h_N for convergence check
+    h_N_old = h_N
+
+    ! CORRECTOR: Update solution
     h_N = h_W + h_E - h_S + dhduv_P * du * dv
 
     ! Check convergence
@@ -94,7 +82,6 @@ subroutine pde_step(h_N, h_S, h_E, h_W, du, dv, rhs_func, n_iter, tol)
     if (j == n_iter) then
       print *, 'WARNING: Picard iterations did not converge, max_err =', max_err
     end if
-
   end do picard_loop
 
 end subroutine pde_step
