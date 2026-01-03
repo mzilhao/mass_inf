@@ -302,7 +302,7 @@ end subroutine compute_diagnostics
 !> Compute and write constraint violations.
 !!
 !! This routine needs to be called at v = const slices since it needs 2nd derivatives in u,
-!! and it's therefore simpler to to implement with access to all u grid points at the given v.
+!! and it's therefore simpler to implement with access to all u grid points at the given v.
 !! The constraint violation along u = const slices is not computed here, since it would require
 !! storing the entire v-grid in memory.
 !! To avoid complications with AMR, we do only the non-AMR part of the grid,
