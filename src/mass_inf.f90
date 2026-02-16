@@ -185,6 +185,9 @@ program mass_inflation
     v_cur = v_cur + dv
   end do
 
+  write(*,'(a)') '-----------------------------------------------------------------------'
+  write(*,'(a)') 'Done.'
+
   ! Close output files
   call close_output_files()
 
