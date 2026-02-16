@@ -135,8 +135,8 @@ end subroutine load
 subroutine compute_grid_dimensions(grid_cfg)
   type(grid_config), intent(inout) :: grid_cfg
 
-  grid_cfg%Nu = int((grid_cfg%u_max - grid_cfg%u_min) / grid_cfg%du + 1.001_dp)
-  grid_cfg%Nv = int((grid_cfg%v_max - grid_cfg%v_min) / grid_cfg%dv + 1.001_dp)
+  grid_cfg%Nu = nint((grid_cfg%u_max - grid_cfg%u_min) / grid_cfg%du) + 1
+  grid_cfg%Nv = nint((grid_cfg%v_max - grid_cfg%v_min) / grid_cfg%dv) + 1
   grid_cfg%Nu_max = int(2.0_dp * (grid_cfg%u_max - grid_cfg%u_min) / grid_cfg%reldiff_max)
 
 end subroutine compute_grid_dimensions
