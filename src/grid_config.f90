@@ -6,6 +6,8 @@
 
 module grid_config_mod
   use precision
+  use utils_mod, only: trim_filename
+
   implicit none
   private
   public :: grid_config, load
@@ -15,6 +17,7 @@ module grid_config_mod
   type :: grid_config
     ! Base dir under which run folder is created ('' = CWD)
     character(len=256) :: output_base_dir = ''
+    character(len=256) :: output_dir      = ''
 
     ! Whether to compute constraint equations during the evolution
     logical  :: compute_constraints = .false.
@@ -55,10 +58,10 @@ subroutine load(grid_cfg, filename)
   ! Local variables for namelist reading
   real(dp) :: u_min, v_min, u_max, v_max, du, dv, reldiff_max
   real(dp) :: output_du, output_dv
-  character(len=256) :: output_base_dir
+  character(len=256) :: output_base_dir, output_dir
   logical :: AMR, compute_constraints
   integer :: progress_stride, progress_header_stride
-  namelist /grid/ output_base_dir, compute_constraints, &
+  namelist /grid/ output_base_dir, output_dir, compute_constraints, &
                   u_min, v_min, u_max, v_max, du, dv, &
                   AMR, reldiff_max, &
                   output_du, output_dv, &
@@ -69,6 +72,7 @@ subroutine load(grid_cfg, filename)
   ! Initialize with type defaults
   grid_cfg = grid_config()
   output_base_dir     = grid_cfg%output_base_dir
+  output_dir          = grid_cfg%output_dir
   compute_constraints = grid_cfg%compute_constraints
   u_min = grid_cfg%u_min
   v_min = grid_cfg%v_min
@@ -98,8 +102,16 @@ subroutine load(grid_cfg, filename)
   end if
   close(unit)
 
+  ! Check if output_dir is an empty string (default value)
+  ! or the string '$parfile' (explicitly set to parameter file name)
+  if (output_dir == '' .or. output_dir == '$parfile') then
+    ! Use the parameter file basename without extension
+    output_dir = trim_filename(filename)
+  end if
+
   ! Update grid_cfg with (possibly modified) namelist values
   grid_cfg%output_base_dir     = output_base_dir
+  grid_cfg%output_dir          = output_dir
   grid_cfg%compute_constraints = compute_constraints
   grid_cfg%u_min = u_min
   grid_cfg%v_min = v_min

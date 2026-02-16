@@ -5,7 +5,7 @@ program mass_inflation
   use model_mod,          only: NEQ, init_cond, open_output_files, write_output, write_constraints, &
                                 close_output_files
   use evolve_wrapper_mod, only: step
-  use utils_mod,          only: startup, print_status, trim_filename
+  use utils_mod,          only: startup, print_status
   use amr_mod,            only: refine_u_grid
   implicit none
 
@@ -68,12 +68,11 @@ program mass_inflation
     call exit(1)
   end if
 
-  ! Output directory name (parameter file basename without extension)
-  out_dir = trim_filename(param_file)
-
   ! Read grid and model configurations
   call load_grid(grid_cfg, param_file)
   call load_model(model_cfg, param_file)
+
+  out_dir = grid_cfg%output_dir
 
   ! Setup output directory and print startup banner
   call startup(param_file, out_dir, force_overwrite, grid_cfg%output_base_dir)
