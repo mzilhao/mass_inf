@@ -130,7 +130,7 @@ program mass_inflation
   ! At each step we assume we are at the point (u,v).
   do i = 1, Nv - 1
     ! Print progress to stdout (cadence controlled by grid config)
-    call print_status(i, v_cur, v_min, v_max, start_time_cpu, h_v0, next_idx, &
+    call print_status(i, Nv, v_cur, v_min, v_max, start_time_cpu, h_v0, next_idx, &
                       grid_cfg%progress_stride, grid_cfg%progress_header_stride)
 
     ! Reset u position each time we advance in v
@@ -184,6 +184,11 @@ program mass_inflation
     ! Advance in v
     v_cur = v_cur + dv
   end do
+
+  write(*,'(a)') '-----------------------------------------------------------------------'
+
+  call print_status(Nv, Nv, v_cur, v_min, v_max, start_time_cpu, h_v0, next_idx, &
+                    grid_cfg%progress_stride, grid_cfg%progress_header_stride)
 
   write(*,'(a)') '-----------------------------------------------------------------------'
   write(*,'(a)') 'Done.'

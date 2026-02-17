@@ -48,8 +48,8 @@ end function relative_difference
 
 
 !> Report progress to stdout: iteration, v, elapsed time, rate, min/max(r)
-subroutine print_status(iter, v_cur, v_initial, v_final, start_cpu, h_v0, next_idx, progress_stride, header_stride)
-  integer, intent(in) :: iter, next_idx
+subroutine print_status(iter, last_it, v_cur, v_initial, v_final, start_cpu, h_v0, next_idx, progress_stride, header_stride)
+  integer, intent(in) :: iter, last_it, next_idx
   real(dp), intent(in) :: v_cur, v_initial, v_final, start_cpu
   real(dp), dimension(:,:), intent(in) :: h_v0
   integer, intent(in) :: progress_stride, header_stride
@@ -59,7 +59,7 @@ subroutine print_status(iter, v_cur, v_initial, v_final, start_cpu, h_v0, next_i
 
   if (progress_stride <= 0) return
 
-  should_print = (iter == 1) .or. (mod(iter, progress_stride) == 0)
+  should_print = (iter == 1) .or. (iter == last_it) .or. (mod(iter, progress_stride) == 0)
   if (.not. should_print) return
 
   should_header = (iter == 1)
