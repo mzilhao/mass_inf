@@ -66,7 +66,7 @@ module model_mod
   use grid_config_mod
   implicit none
 
-  integer, parameter  :: NEQ = 3      ! Number of equations/fields: r, phi, sigma
+  integer, parameter  :: NEQ = 3      ! Number of equations/fields: r, sigma, phi
 
   real(dp), parameter :: Pi = 4.0_dp * atan(1.0_dp)
 
@@ -85,24 +85,30 @@ contains
 !> Right-hand side of the PDE system
 !! Inputs: h (field values), dhdu, dhdv (derivatives)
 !! Output: dhduv (mixed derivatives)
+!!
+!! Nonlinear-electrodynamics sources. The Bardeen mass density is
+!!   rho = 3 m0 q^2 / (4 pi (q^2 + r^2)^(5/2)),
+!! i.e. the matter terms are proportional to the mass parameter m0 as well
+!! as to q^2 (do NOT drop m0 here).
 subroutine F(dhduv, h, dhdu, dhdv, model_cfg)
   real(dp), dimension(NEQ), intent(out) :: dhduv
   real(dp), dimension(NEQ), intent(in)  :: h, dhdu, dhdv
   type(model_config), intent(in)        :: model_cfg
 
-  real(dp) :: r, sigma, phi, q
+  real(dp) :: r, sigma, phi, q, m0
 
-  q = model_cfg%q
+  q  = model_cfg%q
+  m0 = model_cfg%m0
 
   r = h(1); sigma = h(2); phi = h(3)
 
-  dhduv(1) = 3.0_dp * q**2 * r * exp(2.0_dp*sigma) / (q**2 + r**2)**2.5_dp &
-         - exp(2.0_dp*sigma) / (2.0_dp * r)                                 &
+  dhduv(1) = 3.0_dp * m0 * q**2 * r * exp(2.0_dp*sigma) / (q**2 + r**2)**2.5_dp &
+         - exp(2.0_dp*sigma) / (2.0_dp * r)                                   &
          - dhdu(1) * dhdv(1) / r
 
-  dhduv(2) = -15.0_dp * q**2 * r**2 * exp(2.0_dp*sigma) / (2.0_dp * (q**2 + r**2)**3.5_dp) &
-           - dhdu(3) * dhdv(3)                                                                &
-           + exp(2.0_dp*sigma) / (2.0_dp * r**2)                                              &
+  dhduv(2) = -15.0_dp * m0 * q**2 * r**2 * exp(2.0_dp*sigma) / (2.0_dp * (q**2 + r**2)**3.5_dp) &
+           - dhdu(3) * dhdv(3)                                                                  &
+           + exp(2.0_dp*sigma) / (2.0_dp * r**2)                                                &
            + dhdu(1) * dhdv(1) / r**2
 
   dhduv(3) = -1.0_dp / r * (dhdv(1)*dhdu(3) + dhdu(1)*dhdv(3))
