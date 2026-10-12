@@ -31,7 +31,7 @@ OBJECTS_DEBUG = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/debug_%.o,$(SOURCES)) $(MOD
 OBJECTS_PROF = $(patsubst $(SRCDIR)/%.f90,$(OBJDIR)/prof_%.o,$(SOURCES)) $(MODEL_OBJ_PROF)
 
 # Phony targets
-.PHONY: all debug profile clean distclean test help rn models FORCE
+.PHONY: all debug profile clean distclean test tests test_one help rn models FORCE
 
 # Default target
 all: $(BINARY)
@@ -85,6 +85,8 @@ $(OBJDIR)/polint.o: $(OBJDIR)/precision.o
 $(OBJDIR)/AMR.o: $(OBJDIR)/precision.o $(OBJDIR)/grid_config.o $(OBJDIR)/polint.o $(OBJDIR)/utils.o $(MODEL_OBJ)
 
 $(OBJDIR)/debug_grid_config.o: $(OBJDIR)/debug_precision.o $(OBJDIR)/debug_utils.o
+$(OBJDIR)/debug_utils.o: $(OBJDIR)/debug_precision.o
+$(OBJDIR)/debug_polint.o: $(OBJDIR)/debug_precision.o
 $(MODEL_OBJ_DEBUG): $(OBJDIR)/debug_precision.o $(OBJDIR)/debug_grid_config.o
 $(OBJDIR)/debug_pde_stepper.o: $(OBJDIR)/debug_precision.o $(MODEL_OBJ_DEBUG)
 $(OBJDIR)/debug_evolve.o: $(OBJDIR)/debug_precision.o $(OBJDIR)/debug_pde_stepper.o $(MODEL_OBJ_DEBUG)

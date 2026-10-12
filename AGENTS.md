@@ -8,7 +8,7 @@ block (physics, defined per model).
 ## Build
 - `make` builds the default `rn` model -> `bin/mass_inf-rn`. Others: `make MODEL=rnld|fixed|Bardeen` (also `make rn`); `make models` builds rn+rnld+fixed.
 - Model is a compile-time choice: `src/models/<name>_model.f90` is compiled as `model_mod.o` and linked in. Binaries are always model-suffixed — the Makefile never produces an unsuffixed `mass_inf`. Switching `MODEL` always recompiles the model object (forced via a `FORCE` pseudo-target), so a stale binary from a previously built model cannot be silently relinked.
-- `Bardeen` has no convenience target or bench tests yet (build with `make MODEL=Bardeen`). `rn` selects initial data via `ics` in `&model`: `'gaussian'` (default, compact pulse) or `'log'` (the former noncomp model; old noncomp parfiles need `ics = 'log'` added).
+- `Bardeen` has no convenience target (build with `make MODEL=Bardeen`), but it is covered by `make tests` (bench data under `test/Bardeen/`). `rn` selects initial data via `ics` in `&model`: `'gaussian'` (default, compact pulse) or `'log'` (the former noncomp model; old noncomp parfiles need `ics = 'log'` added).
 - `make [MODEL=<m>] debug` -> `bin/mass_inf-<m>-debug` with `-fcheck=all -ffpe-trap=invalid,zero,overflow` (use when chasing NaNs/crashes).
 - Release `FCFLAGS` uses `-march=native` — binaries are machine-specific.
 
