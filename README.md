@@ -46,4 +46,5 @@ See [examples](examples/) for working templates.
 
 ## Authors
 
-Miguel Zilhão
+Miguel Zilhão  
+Ana Bokulić
