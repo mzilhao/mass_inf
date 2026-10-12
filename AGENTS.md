@@ -6,9 +6,9 @@ single namelist file containing a `&grid` block (numerics) and a `&model`
 block (physics, defined per model).
 
 ## Build
-- `make` builds the default `rn` model -> `bin/mass_inf-rn`. Others: `make MODEL=rnld|fixed` (also `make rn`).
+- `make` builds the default `rn` model -> `bin/mass_inf-rn`. Others: `make MODEL=rnld|fixed|Bardeen` (also `make rn`); `make models` builds rn+rnld+fixed.
 - Model is a compile-time choice: `src/models/<name>_model.f90` is compiled as `model_mod.o` and linked in. Binaries are always model-suffixed — the Makefile never produces an unsuffixed `mass_inf`. Switching `MODEL` always recompiles the model object (forced via a `FORCE` pseudo-target), so a stale binary from a previously built model cannot be silently relinked.
-- `Bardeen` and `noncomp` sources exist in `src/models/` but have no convenience targets or tests yet.
+- `Bardeen` has no convenience target or bench tests yet (build with `make MODEL=Bardeen`). `rn` selects initial data via `ics` in `&model`: `'gaussian'` (default, compact pulse) or `'log'` (the former noncomp model; old noncomp parfiles need `ics = 'log'` added).
 - `make [MODEL=<m>] debug` -> `bin/mass_inf-<m>-debug` with `-fcheck=all -ffpe-trap=invalid,zero,overflow` (use when chasing NaNs/crashes).
 - Release `FCFLAGS` uses `-march=native` — binaries are machine-specific.
 
@@ -29,8 +29,10 @@ top-level module, add its dependency lines there too.
 - `make tests` — regression suite for every model with data under `test/<model>/`.
   `make [MODEL=<m>] test` for a single model (builds the binary first).
 - Layout: `test/<model>/<case>.nml` plus a sibling reference dir `<case>/` of
-  `.dat` files. Only `test/rn/` has data now; new dirs under `test/` are picked
-  up automatically. Runs execute in `TESTING/<model>/<case>/` (gitignored).
+  `.dat` files. `<model>` must match the MODEL spelling exactly, including
+  case (`test/Bardeen` for the Bardeen model). New dirs under `test/` are
+  picked up automatically by `make tests`, which now aborts on the first
+  failing model. Runs execute in `TESTING/<model>/<case>/` (gitignored).
 - Comparisons use `test/compare_numerical.py` with tolerances hardcoded in
   `test/run_tests.sh` (RTOL=1e-5, ATOL=2e-8). Requires python3 + numpy (the
   script activates a conda env `numpy` if present).
