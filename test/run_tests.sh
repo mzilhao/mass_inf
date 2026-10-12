@@ -22,20 +22,16 @@ if [ -z "${MODEL:-}" ]; then
     echo -e "${RED}Error: MODEL variable not set. Please run with 'make test MODEL=<model>' or set MODEL in the environment.${NC}"
     exit 1
 fi
-MODEL="$MODEL"
 
-# Prefer model-suffixed binary; fall back to unsuffixed if present
+# Model-suffixed binary (the Makefile never produces an unsuffixed one)
 EXECUTABLE="$BIN_DIR/mass_inf-$MODEL"
-if [ ! -x "$EXECUTABLE" ] && [ -x "$BIN_DIR/mass_inf" ]; then
-    EXECUTABLE="$BIN_DIR/mass_inf"
-fi
 
 # Output root (per model to avoid clashes)
 OUT_ROOT="$PROJ_DIR/TESTING/$MODEL"
 
-# Numerical tolerances
-RTOL="1e-5"  # Relative tolerance (0.001%)
-ATOL="2e-8"  # Absolute tolerance
+# Numerical tolerances (overridable from the environment, e.g. RTOL=1e-8 ./test/run_tests.sh)
+RTOL="${RTOL:-1e-5}"  # Relative tolerance (0.001%)
+ATOL="${ATOL:-2e-8}"  # Absolute tolerance
 
 
 # Dynamically extract columns from file header comments
@@ -75,7 +71,7 @@ echo
 # Check if executable exists
 if [ ! -f "$EXECUTABLE" ]; then
     echo -e "${RED}Error: Executable not found: $EXECUTABLE${NC}"
-    echo "Run 'make release' first to build the code."
+    echo "Run 'make MODEL=$MODEL' first to build the code."
     exit 1
 fi
 

@@ -119,7 +119,7 @@ tests:
 	for m in $$models; do \
 		if ls test/$$m/*.nml 1> /dev/null 2>&1; then \
 			echo "Running tests for model: $$m"; \
-			$(MAKE) --no-print-directory MODEL=$$m test_one; \
+			$(MAKE) --no-print-directory MODEL=$$m test_one || exit 1; \
 		fi; \
 	done
 
