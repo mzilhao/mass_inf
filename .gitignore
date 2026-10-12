@@ -15,6 +15,9 @@ obj/
 *.gcno
 *.gcov
 *.prof
+gmon.out
+timing.log
+gprof.txt
 
 # Test outputs (temporary files, not reference data)
 TESTING/
