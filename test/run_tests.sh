@@ -144,6 +144,28 @@ for cfg in "${cases[@]}"; do
     while IFS= read -r -d $'\0' f; do ref_files+=("$(basename "$f")"); done < <(find "$ref_dir" -maxdepth 1 -type f -name '*.dat' ! -name '.*' -print0)
     while IFS= read -r -d $'\0' f; do out_files+=("$(basename "$f")"); done < <(find "$out_dir" -maxdepth 1 -type f -name '*.dat' ! -name '.*' -print0)
 
+    # Every reference file must be reproduced by the run. Without this check a
+    # missing output file would go unnoticed, since only common files are compared.
+    missing_files=()
+    for f in "${ref_files[@]}"; do
+        matched=0
+        for g in "${out_files[@]}"; do
+            if [ "$f" = "$g" ]; then
+                matched=1
+                break
+            fi
+        done
+        if [ "$matched" -eq 0 ]; then
+            missing_files+=("$f")
+        fi
+    done
+
+    if [ ${#missing_files[@]} -gt 0 ]; then
+        echo -e "${RED}Missing output file(s) (in reference but not produced): ${missing_files[*]}${NC}"
+        overall_status=1
+        continue
+    fi
+
     # Intersect file lists
     files_to_compare=()
     for f in "${ref_files[@]}"; do
