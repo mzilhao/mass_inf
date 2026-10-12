@@ -5,6 +5,14 @@
 ! - module model_mod: provides NEQ and routines:
 !     F, init_cond,
 !     open_output_files, write_output, close_output_files
+!
+! Conventions to follow when writing a new model (see also AGENTS.md):
+! - Store the fields in the order h = (r, sigma, phi); the diagnostics,
+!   constraint and output routines of the existing models rely on it.
+! - Module dependencies are listed by hand in the Makefile ("Module
+!   dependencies" section): add lines for any new top-level module in src/.
+! - Regression cases live in test/<model>/, with the directory name matching
+!   the MODEL spelling exactly (case-sensitive).
 
 module model_config_mod
   use precision
