@@ -7,6 +7,12 @@
 
 set -u  # Treat unset vars as error
 
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
 # Activate conda environment if available
 if command -v conda &> /dev/null; then
     eval "$(conda shell.bash hook)"
@@ -22,20 +28,16 @@ if [ -z "${MODEL:-}" ]; then
     echo -e "${RED}Error: MODEL variable not set. Please run with 'make test MODEL=<model>' or set MODEL in the environment.${NC}"
     exit 1
 fi
-MODEL="$MODEL"
 
-# Prefer model-suffixed binary; fall back to unsuffixed if present
+# Model-suffixed binary (the Makefile never produces an unsuffixed one)
 EXECUTABLE="$BIN_DIR/mass_inf-$MODEL"
-if [ ! -x "$EXECUTABLE" ] && [ -x "$BIN_DIR/mass_inf" ]; then
-    EXECUTABLE="$BIN_DIR/mass_inf"
-fi
 
 # Output root (per model to avoid clashes)
 OUT_ROOT="$PROJ_DIR/TESTING/$MODEL"
 
-# Numerical tolerances
-RTOL="1e-5"  # Relative tolerance (0.001%)
-ATOL="2e-8"  # Absolute tolerance
+# Numerical tolerances (overridable from the environment, e.g. RTOL=1e-8 ./test/run_tests.sh)
+RTOL="${RTOL:-1e-5}"  # Relative tolerance (0.001%)
+ATOL="${ATOL:-2e-8}"  # Absolute tolerance
 
 
 # Dynamically extract columns from file header comments
@@ -47,12 +49,6 @@ get_columns() {
     # Replace commas with spaces, trim
     echo "$columns_line" | tr ',' ' ' | xargs
 }
-
-# Colors for output
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 # Discover test cases: require model-specific folder test/<model>
 CASE_ROOT="$TEST_DIR/$MODEL"
@@ -75,7 +71,7 @@ echo
 # Check if executable exists
 if [ ! -f "$EXECUTABLE" ]; then
     echo -e "${RED}Error: Executable not found: $EXECUTABLE${NC}"
-    echo "Run 'make release' first to build the code."
+    echo "Run 'make MODEL=$MODEL' first to build the code."
     exit 1
 fi
 
@@ -147,6 +143,28 @@ for cfg in "${cases[@]}"; do
     out_files=()
     while IFS= read -r -d $'\0' f; do ref_files+=("$(basename "$f")"); done < <(find "$ref_dir" -maxdepth 1 -type f -name '*.dat' ! -name '.*' -print0)
     while IFS= read -r -d $'\0' f; do out_files+=("$(basename "$f")"); done < <(find "$out_dir" -maxdepth 1 -type f -name '*.dat' ! -name '.*' -print0)
+
+    # Every reference file must be reproduced by the run. Without this check a
+    # missing output file would go unnoticed, since only common files are compared.
+    missing_files=()
+    for f in "${ref_files[@]}"; do
+        matched=0
+        for g in "${out_files[@]}"; do
+            if [ "$f" = "$g" ]; then
+                matched=1
+                break
+            fi
+        done
+        if [ "$matched" -eq 0 ]; then
+            missing_files+=("$f")
+        fi
+    done
+
+    if [ ${#missing_files[@]} -gt 0 ]; then
+        echo -e "${RED}Missing output file(s) (in reference but not produced): ${missing_files[*]}${NC}"
+        overall_status=1
+        continue
+    fi
 
     # Intersect file lists
     files_to_compare=()

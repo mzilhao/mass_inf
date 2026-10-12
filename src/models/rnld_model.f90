@@ -7,13 +7,15 @@ module model_config_mod
   !> Model configuration type - encapsulates all model parameters
   type :: model_config
     integer  :: D = 4                    ! Spacetime dimension
-    real(dp) :: lambda = 0.0_dp          ! Cosmological constant
+    real(dp) :: lambda = 0.0_dp          ! Cosmological constant (metric contains -lambda*r^2/3)
     real(dp) :: A = 0.0_dp               ! Scalar field amplitude
     real(dp) :: Delta = 1.0_dp           ! Scalar field width
-    real(dp) :: q = 0.95_dp              ! Electric charge
+    real(dp) :: q = 0.95_dp              ! Electric charge parameter (metric contains +q^2/r^(2(D-3)))
     real(dp) :: m0 = 1.0_dp              ! Initial mass parameter
 
-    real(dp) :: q2 = 0.0_dp, qq2 = 0.0_dp, qq = 0.0_dp  ! Derived constants, dummy values
+    !> Derived constants
+    real(dp) :: q2 = 0.0_dp              ! q^2
+    real(dp) :: qq2 = 0.0_dp             ! q^2*(D-3)*(D-2)/2, charge coefficient of the field equations
   end type model_config
 
 contains
@@ -22,9 +24,8 @@ contains
 !> Initialize model configuration with derived constants
 subroutine init_model_config(model_cfg)
   type(model_config), intent(inout) :: model_cfg
-  model_cfg%q2 = model_cfg%q * model_cfg%q
-  model_cfg%qq2 = 0.5d0 * model_cfg%q2 * (model_cfg%D - 3) * (model_cfg%D - 2)
-  model_cfg%qq = sqrt(model_cfg%qq2)
+  model_cfg%q2  = model_cfg%q * model_cfg%q
+  model_cfg%qq2 = 0.5_dp * model_cfg%q2 * (model_cfg%D - 3) * (model_cfg%D - 2)
 end subroutine init_model_config
 
 !====================================================================================
@@ -88,9 +89,9 @@ module model_mod
   use grid_config_mod
   implicit none
 
-  integer, parameter  :: NEQ = 3      ! Number of equations/fields: r, phi, sigma
+  integer, parameter  :: NEQ = 3      ! Number of equations/fields: r, sigma, phi
 
-  real(dp), parameter :: PI = 4.0_dp * atan(1.0_dp)
+  real(dp), parameter :: Pi = 4.0_dp * atan(1.0_dp)
 
   integer, save :: diag_unit = -1, fields_unit = -1, derivs_unit = -1, constraints_unit = -1
   logical, save :: diag_open = .false., fields_open = .false., derivs_open = .false.
@@ -107,6 +108,12 @@ contains
 !> Right-hand side of the PDE system
 !! Inputs: h (field values), dhdu, dhdv (derivatives)
 !! Output: dhduv (mixed derivatives)
+!!
+!! D-dimensional Einstein equations with charge qq (= q*sqrt((D-3)*(D-2)/2) in the
+!! metric function) and cosmological constant lambda (entering the metric function
+!! as -lambda*r^2/3, i.e., lambda = 6*Lambda_Einstein/((D-1)*(D-2)); lambda equals
+!! the bare Einstein Lambda only for D = 4), sourced by a minimally coupled
+!! massless scalar field.
 subroutine F(dhduv, h, dhdu, dhdv, model_cfg)
   real(dp), dimension(NEQ), intent(out) :: dhduv
   real(dp), dimension(NEQ), intent(in)  :: h, dhdu, dhdv
@@ -121,19 +128,22 @@ subroutine F(dhduv, h, dhdu, dhdv, model_cfg)
   lambda = model_cfg%lambda
   qq2    = model_cfg%qq2
 
-  ! h(1) = r, h(2) = phi, h(3) = sigma
-  dhduv(1) = qq2/(D-2) * exp(2*h(3)) / (h(1)**(2*D-5)) &
-       + (D-1)/6.0d0 * lambda * h(1) * exp(2*h(3)) &
-       - (D-3)/2.0d0 * exp(2*h(3)) / h(1) &
+  ! h(1) = r, h(2) = sigma, h(3) = phi
+  ! Constraint equation (G_uv = 8 pi T_uv) for r
+  dhduv(1) = qq2/(D-2) * exp(2*h(2)) / (h(1)**(2*D-5)) &
+       + (D-1)/6.0_dp * lambda * h(1) * exp(2*h(2)) &
+       - (D-3)/2.0_dp * exp(2*h(2)) / h(1) &
        - (D-3) * dhdu(1) * dhdv(1) / h(1)
 
-  dhduv(2) = -(D-2) / (2.0d0*h(1)) * (dhdv(1)*dhdu(2) + dhdu(1)*dhdv(2))
+  ! Constraint equation (G_theta-theta = 8 pi T_theta-theta) for phi
+  dhduv(3) = -(D-2) / (2.0_dp*h(1)) * (dhdv(1)*dhdu(3) + dhdu(1)*dhdv(3))
 
-  dhduv(3) = -dhdu(2) * dhdv(2) &
-       - (3*D-8) / (2.0d0*D-4) * qq2 * exp(2*h(3)) / (h(1)**(2*(D-2))) &
-       - (D-4)*(D-1) * lambda / 12.0d0 * exp(2*h(3)) &
-       + (D-3)*(D-2) / 4.0d0 * exp(2*h(3)) / (h(1)*h(1)) &
-       + (D-3)*(D-2) / 2.0d0 * dhdu(1) * dhdv(1) / (h(1)*h(1))
+  ! Evolution equation for sigma
+  dhduv(2) = -dhdu(3) * dhdv(3) &
+       - (3*D-8) / (2.0_dp*D-4) * qq2 * exp(2*h(2)) / (h(1)**(2*(D-2))) &
+       - (D-4)*(D-1) * lambda / 12.0_dp * exp(2*h(2)) &
+       + (D-3)*(D-2) / 4.0_dp * exp(2*h(2)) / (h(1)*h(1)) &
+       + (D-3)*(D-2) / 2.0_dp * dhdu(1) * dhdv(1) / (h(1)*h(1))
 end subroutine F
 
 !====================================================================================
@@ -149,7 +159,6 @@ subroutine init_cond(h_u0, h_v0, grid_cfg, model_cfg)
   real(dp) :: u, v, lambda, q2
   real(dp) :: r00, sigma_0, m0, ru0, v0, v1
   real(dp) :: A, Delta
-  logical  :: scalarfield
 
   ! Extract config values
   D      = model_cfg%D
@@ -161,52 +170,48 @@ subroutine init_cond(h_u0, h_v0, grid_cfg, model_cfg)
   v0     = grid_cfg%v_min
 
   ! Initial condition parameters
-  r00 = v0
-  sigma_0 = -0.5d0 * log(2.0d0)
-  ru0 = 0.25d0 * (2.0d0 / (r00**(D-3)) * (m0 - q2/(2.0d0*r00**(D-3))) &
-       - 1.0d0 + lambda * r00 * r00 / 3.0d0)
+  r00     = v0
+  sigma_0 = -0.5_dp * log(2.0_dp)
+  ! Mass aspect m(r00) = m0 - q2/(2*r00^(D-3)) + lambda*r00^(D-1)/6, with r_v = 1
+  ru0     = 0.25_dp * (2.0_dp / (r00**(D-3)) * (m0 - q2/(2.0_dp*r00**(D-3))) &
+             - 1.0_dp + lambda * r00 * r00 / 3.0_dp)
 
-  ! FIXME
-  scalarfield = .true.
   v1 = v0 + Delta
 
-  ! Boundary conditions at u = u_min
+  ! Boundary conditions at v = v_min (no scalar field, exact background slice)
+  do i = 1, grid_cfg%Nu
+    u = grid_cfg%u_min + (i-1) * grid_cfg%du
+    h_v0(i, 1) = r00 + u * ru0  ! r(u,v_min)
+    h_v0(i, 2) = sigma_0        ! sigma(u,v_min)
+    h_v0(i, 3) = 0.0_dp         ! phi(u,v_min)
+  end do
+
+  ! Boundary conditions at u = u_min. The scalar pulse phi(v) (Gaussian-like,
+  ! approaching A*Delta/2 for v > v0 + Delta) drives sigma(v) through the
+  ! constraint sigma_v = v*phi_v^2/(D-2), integrated analytically below.
   do i = 1, grid_cfg%Nv
     v = v0 + (i-1) * grid_cfg%dv
     h_u0(i, 1) = v  ! r(u_min,v)
 
-    if (scalarfield) then
-      if (v <= v0 + Delta) then
-        ! Perturbation phase
-        h_u0(i, 2) = A / (4*Pi) * (2*Pi*(v - v0) - Delta * sin(2.0d0*Pi*(v - v0)/Delta))
-        h_u0(i, 3) = sigma_0 + 2.0d0/(D-2.0d0) * A*A/(256*Pi*Pi) &
-             * (15*v0**2 - 24*Pi*Pi*v0**2 - 30*v0*v1 &
-             + 15*v1**2 + 24*Pi*Pi*v**2 &
-             - 16*Delta**2*cos(2*Pi*(v0-v)/Delta) &
-             + Delta**2*cos(4*Pi*(v0-v)/Delta) &
-             - 32*Pi*v0*v*sin(2*Pi*(v0-v)/Delta) &
-             + 32*Pi*v1*v*sin(2*Pi*(v0-v)/Delta) &
-             + 4*Pi*v0*v*sin(4*Pi*(v0-v)/Delta) &
-             - 4*Pi*v1*v*sin(4*Pi*(v0-v)/Delta))
-      else
-        ! No perturbation phase
-        h_u0(i, 2) = 0.5d0 * A * Delta
-        h_u0(i, 3) = sigma_0 + 2.0d0/(D-2.0d0) * 3*A*A*Delta*(v0+v1)/32.0d0
-      end if
+    if (v <= v0 + Delta) then
+      ! Perturbation phase
+      h_u0(i, 2) = sigma_0 + 2.0_dp/(D-2.0_dp) * A*A/(256*Pi*Pi) &
+           * (15*v0**2 - 24*Pi*Pi*v0**2 - 30*v0*v1 &
+           + 15*v1**2 + 24*Pi*Pi*v**2 &
+           - 16*Delta**2*cos(2*Pi*(v0-v)/Delta) &
+           + Delta**2*cos(4*Pi*(v0-v)/Delta) &
+           - 32*Pi*v0*v*sin(2*Pi*(v0-v)/Delta) &
+           + 32*Pi*v1*v*sin(2*Pi*(v0-v)/Delta) &
+           + 4*Pi*v0*v*sin(4*Pi*(v0-v)/Delta) &
+           - 4*Pi*v1*v*sin(4*Pi*(v0-v)/Delta))
+      h_u0(i, 3) = A / (4*Pi) * (2*Pi*(v - v0) - Delta * sin(2*Pi*(v - v0)/Delta))
     else
-      ! No scalar field
-      h_u0(i, 2) = 0.0d0
-      h_u0(i, 3) = sigma_0
+      ! No perturbation phase
+      h_u0(i, 2) = sigma_0 + 2.0_dp/(D-2.0_dp) * 3*A*A*Delta*(v0+v1)/32.0_dp
+      h_u0(i, 3) = 0.5_dp * A * Delta
     end if
   end do
 
-  ! Boundary conditions at v = v_min
-  do i = 1, grid_cfg%Nu
-    u = grid_cfg%u_min + (i-1) * grid_cfg%du
-    h_v0(i, 1) = r00 + u * ru0  ! r(u,v_min)
-    h_v0(i, 2) = 0.0d0          ! phi(u,v_min)
-    h_v0(i, 3) = sigma_0        ! sigma(u,v_min)
-  end do
 end subroutine init_cond
 
 !====================================================================================
@@ -221,7 +226,7 @@ subroutine open_output_files(out_dir)
   open(newunit=derivs_unit,      file=trim(out_dir)//'/derivatives.dat', status='replace')
   open(newunit=constraints_unit, file=trim(out_dir)//'/constraints.dat', status='replace')
 
-  write(fields_unit,      '(a)') '# Columns: u, r, phi, sigma'
+  write(fields_unit,      '(a)') '# Columns: u, r, sigma, phi'
   write(diag_unit,        '(a)') '# Columns: u, mass, Ricci'
   write(derivs_unit,      '(a)') '# Columns: u, drdu, drdv'
   write(constraints_unit, '(a)') '# Columns: u, Guu'
@@ -307,7 +312,7 @@ subroutine write_output(u_val, v_val, h_N, h_S, h_E, h_W, du, dv, grid_cfg, mode
   call compute_diagnostics(mass, ricci, h_P, dhdu_P, dhdv_P, dhduv_P, model_cfg)
 
   ! Write columnar output
-  write(fields_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3) ! u, r, phi, sigma
+  write(fields_unit, '(7e16.8)') u_P, h_P(1), h_P(2), h_P(3) ! u, r, sigma, phi
   write(diag_unit,   '(7e16.8)') u_P, mass, ricci            ! u, mass, Ricci
   write(derivs_unit, '(7e16.8)') u_P, dhdu_P(1), dhdv_P(1)   ! u, drdu, drdv
 
@@ -315,6 +320,10 @@ end subroutine write_output
 
 !====================================================================================
 !> Compute model-dependent diagnostics (mass, Ricci)
+!!
+!! mass is the mass aspect m = r^(D-3)/2 * (1 - lambda*r^2/3 + q2/r^(2*(D-3))
+!! + 2*exp(-2*sigma)*r_u*r_v), which is constant (= m0) for the exact background.
+!! ricci is the Ricci scalar.
 subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)
   real(dp), intent(out)               :: mass, ricci
   real(dp), dimension(:), intent(in)  :: h, dhdu, dhdv, dhduv
@@ -327,21 +336,22 @@ subroutine compute_diagnostics(mass, ricci, h, dhdu, dhdv, dhduv, model_cfg)
   lambda = model_cfg%lambda
   q2     = model_cfg%q2
 
-  mass = 0.5d0 * h(1)**(D-3) * ( 1.d0 - lambda/3.d0 * h(1)*h(1)           &
-        + q2 / ( (h(1)*h(1))**(D-3) )                                     &
-        + 2.d0 * dhdu(1) * dhdv(1) / exp(2.d0 * h(3)) )
+  mass = 0.5_dp * h(1)**(D-3) * ( 1.0_dp - lambda/3.0_dp * h(1)*h(1)           &
+        + q2 / ( (h(1)*h(1))**(D-3) )                                          &
+        + 2.0_dp * dhdu(1) * dhdv(1) / exp(2.0_dp * h(2)) )
 
   ricci = (D-3)*(D-2)/( h(1)*h(1) ) * (                                   &
-        1 + 2*exp(-2*h(3)) * dhdu(1)*dhdv(1)                              &
+        1.0_dp + 2.0_dp*exp(-2.0_dp*h(2)) * dhdu(1)*dhdv(1)               &
         )                                                                 &
-        + 4*exp(-2*h(3))*dhduv(3) + 4*(D-2)*dhduv(1)*exp(-2*h(3)) / h(1)
+        + 4.0_dp*exp(-2.0_dp*h(2))*dhduv(2)                               &
+        + 4.0_dp*(D-2)*dhduv(1)*exp(-2.0_dp*h(2)) / h(1)
 end subroutine compute_diagnostics
 
 !====================================================================================
 !> Compute and write constraint violations.
 !!
 !! This routine needs to be called at v = const slices since it needs 2nd derivatives in u,
-!! and it's therefore simpler to to implement with access to all u grid points at the given v.
+!! and it's therefore simpler to implement with access to all u grid points at the given v.
 !! The constraint violation along u = const slices is not computed here, since it would require
 !! storing the entire v-grid in memory.
 !! To avoid complications with AMR, we do only the non-AMR part of the grid,
@@ -350,7 +360,7 @@ subroutine write_constraints(h_v, u, v_val, grid_cfg, model_cfg)
   real(dp), intent(in)             :: h_v(:,:)
   real(dp), intent(in)             :: u(:)
   real(dp), intent(in)             :: v_val
-  type(grid_config), intent(in)    :: grid_cfg
+  type(grid_config),  intent(in)   :: grid_cfg
   type(model_config), intent(in)   :: model_cfg
 
   real(dp) :: temp, r, r_uu, r_u, sigma_u, phi_u, du, Guu
@@ -387,10 +397,12 @@ subroutine write_constraints(h_v, u, v_val, grid_cfg, model_cfg)
 
   do j = 2, Nu - 1
     r       = h_v(j, 1)
+    ! first derivatives
     r_u     = (h_v(j+1, 1) - h_v(j-1, 1)) * 0.5_dp / du
     sigma_u = (h_v(j+1, 2) - h_v(j-1, 2)) * 0.5_dp / du
     phi_u   = (h_v(j+1, 3) - h_v(j-1, 3)) * 0.5_dp / du
 
+    ! second derivative
     r_uu    = (h_v(j+1, 1) - 2.0_dp*h_v(j, 1) + h_v(j-1, 1)) / (du*du)
 
     Guu = (D-2)*r_uu - 2*(D-2)*r_u*sigma_u + 2*r*phi_u*phi_u

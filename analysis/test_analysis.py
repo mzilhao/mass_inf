@@ -16,7 +16,7 @@ if workspace_root not in sys.path:
 from analysis.read_data import MassInflationData
 
 # %%
-run_dir = os.path.join(script_dir, 'RN_config00')
+run_dir = os.path.join(workspace_root, 'runs', 'RN_config00')
 reader = MassInflationData(run_dir)
 
 # %%

@@ -10,6 +10,7 @@ module model_config_mod
     real(dp) :: Delta = 1.0_dp           ! Scalar field width
     real(dp) :: q  = 0.95_dp             ! Electric charge
     real(dp) :: m0 = 1.0_dp              ! Initial mass parameter
+    character(len=16) :: ics = 'gaussian' ! Initial-data profile on u = u_min: 'gaussian' or 'log'
   end type model_config
 
 contains
@@ -22,7 +23,8 @@ subroutine load(model_cfg, filename)
 
   ! Local variables for namelist reading
   real(dp) :: A, Delta, q, m0
-  namelist /model/ A, Delta, q, m0
+  character(len=16) :: ics
+  namelist /model/ A, Delta, q, m0, ics
 
   integer :: unit, ierr
 
@@ -32,6 +34,7 @@ subroutine load(model_cfg, filename)
   Delta  = model_cfg%Delta
   q      = model_cfg%q
   m0     = model_cfg%m0
+  ics    = model_cfg%ics
 
   ! Read namelist
   open(newunit=unit, file=filename, status='old', action='read', iostat=ierr)
@@ -53,6 +56,15 @@ subroutine load(model_cfg, filename)
   model_cfg%Delta  = Delta
   model_cfg%q      = q
   model_cfg%m0     = m0
+  model_cfg%ics    = ics
+
+  ! Validate the initial-data profile
+  select case (trim(ics))
+  case ('gaussian', 'log')
+  case default
+    write(*, '(a,a)') 'Error: unknown initial-data profile ics = "' // trim(ics) // '" (valid: gaussian, log)'
+    call exit(1)
+  end select
 
 end subroutine load
 
@@ -66,7 +78,7 @@ module model_mod
   use grid_config_mod
   implicit none
 
-  integer, parameter  :: NEQ = 3      ! Number of equations/fields: r, phi, sigma
+  integer, parameter  :: NEQ = 3      ! Number of equations/fields: r, sigma, phi
 
   real(dp), parameter :: Pi = 4.0_dp * atan(1.0_dp)
 
@@ -142,31 +154,42 @@ subroutine init_cond(h_u0, h_v0, grid_cfg, model_cfg)
     h_v0(i, 3) = 0.0_dp         ! phi(u,v_min)
   end do
 
-  ! Boundary conditions at u = u_min
+  ! Boundary conditions at u = u_min. The scalar perturbation enters the domain
+  ! through this slice; sigma is obtained by integrating the constraint
+  ! sigma_v = v*phi_v^2/2 (there r = v and r_vv = 0).
   do i = 1, grid_cfg%Nv
     v = v0 + (i-1) * grid_cfg%dv
     h_u0(i, 1) = v  ! r(u_min,v)
 
-    if (v <= v0 + Delta) then
-      ! sigma(r_umin,v)
-      h_u0(i, 2) = sigma_0              &
-                 + A*A/(256*Pi*Pi) * (  &
-                      15*v0**2 - 24*Pi*Pi*v0**2 - 30*v0*v1  &
-                    + 15*v1**2 + 24*Pi*Pi*v**2              &
-                    - 16*Delta**2*cos(2*Pi*(v0-v)/Delta)    &
-                    + Delta**2*cos(4*Pi*(v0-v)/Delta)       &
-                    - 32*Pi*v0*v*sin(2*Pi*(v0-v)/Delta)     &
-                    + 32*Pi*v1*v*sin(2*Pi*(v0-v)/Delta)     &
-                    + 4*Pi*v0*v*sin(4*Pi*(v0-v)/Delta)      &
-                    - 4*Pi*v1*v*sin(4*Pi*(v0-v)/Delta)      &
-                    )
+    select case (trim(model_cfg%ics))
+    case ('log')
+      ! Log profile: phi = A*log(v/v0), so phi_v = A/v maintains a scalar
+      ! flux through the boundary, and sigma = sigma_0 + A*A/2*log(v/v0).
+      h_u0(i, 2) = sigma_0 + A*A*log(v/v0)/2.0_dp
+      h_u0(i, 3) = A * log(v/v0)
+    case default
+      ! Gaussian-like pulse with compact support (v0 <= v <= v0 + Delta)
+      if (v <= v0 + Delta) then
+        ! sigma(r_umin,v)
+        h_u0(i, 2) = sigma_0              &
+                   + A*A/(256*Pi*Pi) * (  &
+                        15*v0**2 - 24*Pi*Pi*v0**2 - 30*v0*v1  &
+                      + 15*v1**2 + 24*Pi*Pi*v**2              &
+                      - 16*Delta**2*cos(2*Pi*(v0-v)/Delta)    &
+                      + Delta**2*cos(4*Pi*(v0-v)/Delta)       &
+                      - 32*Pi*v0*v*sin(2*Pi*(v0-v)/Delta)     &
+                      + 32*Pi*v1*v*sin(2*Pi*(v0-v)/Delta)     &
+                      + 4*Pi*v0*v*sin(4*Pi*(v0-v)/Delta)      &
+                      - 4*Pi*v1*v*sin(4*Pi*(v0-v)/Delta)      &
+                      )
 
-      ! phi(r_umin,v)
-      h_u0(i, 3) = A/(4*Pi) * (2*Pi*(v-v0) - Delta*sin(2*Pi*(v - v0)/Delta))
-    else
-      h_u0(i, 2) = sigma_0 + 3*A*A*Delta*(v0+v1)/32
-      h_u0(i, 3) = 0.5_dp * A * Delta
-    end if
+        ! phi(r_umin,v)
+        h_u0(i, 3) = A/(4*Pi) * (2*Pi*(v-v0) - Delta*sin(2*Pi*(v - v0)/Delta))
+      else
+        h_u0(i, 2) = sigma_0 + 3*A*A*Delta*(v0+v1)/32
+        h_u0(i, 3) = 0.5_dp * A * Delta
+      end if
+    end select
   end do
 
 end subroutine init_cond
