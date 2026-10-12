@@ -34,7 +34,11 @@ subroutine refine_u_grid(u, plus, minus, h_v0, h_W, h_S, j, next_idx, u_max, rel
     jp1 = plus(j)
 
     do k = 1, neq
-      if (u(jp1) < u_max) then
+      ! Only use the next grid point if it is a genuine in-domain neighbour
+      ! (u must be strictly increasing). For the last cell, plus(j) points to
+      ! the unused sentinel slot (u = 0) or, after AMR insertions, to a node
+      ! somewhere else in the domain; both must fall back to the left stencil.
+      if (u(jp1) < u_max .and. u(jp1) > u(j)) then
         interp_x = [ u(1), u(jm2), u(jm1), u(j), u(jp1) ]
         interp_y = [ h_v0(1,k), h_v0(jm2,k), h_v0(jm1,k), h_v0(j,k), &
                      h_v0(jp1,k) ]
