@@ -12,9 +12,9 @@
 
 ## How It Works
 
-1. Builds binary (`make MODEL=<model>`) if not already built
+1. The model binary is built first by the Makefile (`make [MODEL=<model>] test`)
 2. For each `*.nml` in the testing directory:
-  - Runs the simulation with working dir `TESTING/` (outputs land in `TESTING/<case>/`)
+  - Runs the simulation with working dir `TESTING/<model>/` (outputs land in `TESTING/<model>/<case>/`)
   - Compares output `*.dat` files against the reference set with the set tolerances
 3. Reports pass/fail with per-case details
 

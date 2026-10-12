@@ -7,6 +7,12 @@
 
 set -u  # Treat unset vars as error
 
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
 # Activate conda environment if available
 if command -v conda &> /dev/null; then
     eval "$(conda shell.bash hook)"
@@ -43,12 +49,6 @@ get_columns() {
     # Replace commas with spaces, trim
     echo "$columns_line" | tr ',' ' ' | xargs
 }
-
-# Colors for output
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 # Discover test cases: require model-specific folder test/<model>
 CASE_ROOT="$TEST_DIR/$MODEL"
