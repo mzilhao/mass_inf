@@ -4,7 +4,7 @@
 ! - module model_config_mod: defines type(model_config), load
 ! - module model_mod: provides NEQ and routines:
 !     F, init_cond,
-!     open_output_files, write_output, close_output_files
+!     open_output_files, write_output, write_constraints, close_output_files
 !
 ! Conventions to follow when writing a new model (see also AGENTS.md):
 ! - Store the fields in the order h = (r, sigma, phi); the diagnostics,

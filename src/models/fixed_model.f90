@@ -66,7 +66,7 @@ module model_mod
   use grid_config_mod
   implicit none
 
-  integer, parameter  :: NEQ = 3      ! Number of equations/fields: r, phi, sigma
+  integer, parameter  :: NEQ = 3      ! Number of equations/fields: r, sigma, phi
 
   real(dp), parameter :: Pi = 4.0_dp * atan(1.0_dp)
 
